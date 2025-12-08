@@ -10,7 +10,7 @@ import { api } from "@/convex/_generated/api";
 export default function Dashboard() {
   return (
     <>
-      <SignOutButton />
+      <SignOutButton /> eto
     </>
   );
 }

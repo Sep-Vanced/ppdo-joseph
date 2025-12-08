@@ -3,7 +3,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import Image from "next/image";
 
 export default function SignIn() {
   const { signIn } = useAuthActions();
@@ -139,8 +138,18 @@ export default function SignIn() {
           {/* Theme Toggle - Top Right */}
           <div className="absolute top-4 right-4 md:top-6 md:right-6">
             <button className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors">
-              <svg className="w-5 h-5 text-zinc-700 dark:text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              <svg
+                className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                />
               </svg>
             </button>
           </div>
@@ -175,12 +184,12 @@ export default function SignIn() {
                 const formData = new FormData(e.target as HTMLFormElement);
                 formData.set("flow", "signIn");
                 void signIn("password", formData)
+                  .then(() => {
+                    router.push("/dashboard");
+                  })
                   .catch((error) => {
                     setError(error.message);
                     setLoading(false);
-                  })
-                  .then(() => {
-                    router.push("/dashboard");
                   });
               }}
               className="space-y-6"
