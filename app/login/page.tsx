@@ -61,7 +61,7 @@ export default function Login() {
               setLoading(false);
             })
             .then(() => {
-              router.push("/");
+              router.push("/dashboard");
             });
         }}
       >

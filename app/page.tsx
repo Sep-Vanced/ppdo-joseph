@@ -1,3 +1,5 @@
+// app/page.tsx
+
 "use client";
 
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
@@ -73,7 +75,14 @@ function Content() {
 
   return (
     <div className="flex flex-col gap-4 max-w-lg mx-auto">
-    nice
+      <div className="bg-slate-100 dark:bg-slate-800 p-6 rounded-xl border border-slate-300 dark:border-slate-600 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
+          Welcome!
+        </h2>
+        <p className="text-slate-600 dark:text-slate-400">
+          Logged in as: <span className="font-medium text-slate-800 dark:text-slate-200">{viewer || "User"}</span>
+        </p>
+      </div>
     </div>
   );
 }

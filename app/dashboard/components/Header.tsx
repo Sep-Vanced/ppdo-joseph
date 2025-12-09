@@ -6,6 +6,9 @@ import { ThemeToggle } from "./ThemeToggle";
 import { useSidebar } from "../contexts/SidebarContext";
 import { useAccentColor } from "../contexts/AccentColorContext";
 import SignOutButton from "@/app/components/SignOutButton";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+
 
 interface HeaderProps {
   onSearchChange?: (query: string) => void;
@@ -13,8 +16,6 @@ interface HeaderProps {
 }
 
 export function Header({ onSearchChange, searchQuery }: HeaderProps) {
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [userName, setUserName] = useState<string>("");
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notificationCount, setNotificationCount] = useState(3);
@@ -25,25 +26,15 @@ export function Header({ onSearchChange, searchQuery }: HeaderProps) {
   const { isMinimized, toggleMinimize } = useSidebar();
   const { accentColorValue, setAccentColor } = useAccentColor();
 
+  // Get user data from Convex
+  const { viewer } = useQuery(api.myFunctions.listNumbers, { count: 10 }) ?? {};
+  const userEmail = viewer || "";
+  const userName = "Tarlac Administrator";
+
   // Sync hex input with accent color value
   useEffect(() => {
     setHexInputValue(accentColorValue.toUpperCase());
   }, [accentColorValue]);
-
-  useEffect(() => {
-    const email = localStorage.getItem("userEmail");
-    if (email) {
-      setUserEmail(email);
-    }
-    // Mock user name - in production, this would come from user data/API
-    setUserName("Tarlac Administrator");
-  }, []);
-
-  function handleLogout() {
-    localStorage.removeItem("authenticated");
-    localStorage.removeItem("userEmail");
-    router.push("/");
-  }
 
   return (
     <header className="sticky top-0 z-30 bg-[#f8f8f8]/95 dark:bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-800">
