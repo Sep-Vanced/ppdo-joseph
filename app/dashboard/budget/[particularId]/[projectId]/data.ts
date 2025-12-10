@@ -1,8 +1,105 @@
+// app/dashboard/budget/[particularId]/[projectId]/data.ts
+
 import {
   FinancialBreakdownItem,
   Project,
+  Remark,
 } from "../../types";
 import { getProjectsByParticular } from "../data";
+
+// Mock remarks data - in production, this would come from an API
+export function getRemarksByProject(projectId: string): Remark[] {
+  return [
+    {
+      id: "rem-1",
+      projectId: projectId,
+      content: "Initial budget allocation approved by the finance committee. All line items have been reviewed and confirmed.",
+      createdBy: "Maria Santos",
+      createdAt: new Date("2024-01-15T09:30:00"),
+      updatedBy: "Maria Santos",
+      updatedAt: new Date("2024-01-15T09:30:00"),
+    },
+    {
+      id: "rem-2",
+      projectId: projectId,
+      content: "Obligation for fuel and lubricants has been processed. Waiting for delivery confirmation from supplier.",
+      createdBy: "Juan Dela Cruz",
+      createdAt: new Date("2024-02-10T14:20:00"),
+      updatedBy: "Juan Dela Cruz",
+      updatedAt: new Date("2024-02-10T14:20:00"),
+    },
+    {
+      id: "rem-3",
+      projectId: projectId,
+      content: "Training expenses for Q1 have been fully obligated. Budget utilization is on track with projections.",
+      createdBy: "Ana Reyes",
+      createdAt: new Date("2024-03-05T11:15:00"),
+      updatedBy: "Maria Santos",
+      updatedAt: new Date("2024-03-06T08:45:00"),
+    },
+    {
+      id: "rem-4",
+      projectId: projectId,
+      content: "Request for budget reallocation submitted for anti-drug programs. Pending approval from the provincial board.",
+      createdBy: "Roberto Garcia",
+      createdAt: new Date("2024-03-20T16:00:00"),
+      updatedBy: "Roberto Garcia",
+      updatedAt: new Date("2024-03-20T16:00:00"),
+    },
+    {
+      id: "rem-5",
+      projectId: projectId,
+      content: "Mid-year budget review completed. Overall utilization rate at 68%. Recommend accelerating disbursement for remaining quarters.",
+      createdBy: "Maria Santos",
+      createdAt: new Date("2024-06-30T10:00:00"),
+      updatedBy: "Ana Reyes",
+      updatedAt: new Date("2024-07-02T09:30:00"),
+    },
+  ];
+}
+
+// Add a new remark - in production, this would POST to an API
+export function addRemark(
+  projectId: string,
+  content: string,
+  createdBy: string
+): Remark {
+  const newRemark: Remark = {
+    id: `rem-${Date.now()}`,
+    projectId: projectId,
+    content: content,
+    createdBy: createdBy,
+    createdAt: new Date(),
+    updatedBy: createdBy,
+    updatedAt: new Date(),
+  };
+  return newRemark;
+}
+
+// Update an existing remark - in production, this would PUT to an API
+export function updateRemark(
+  remarkId: string,
+  content: string,
+  updatedBy: string
+): Remark | null {
+  // In production, fetch and update the remark via API
+  // This is just a mock response
+  return {
+    id: remarkId,
+    projectId: "project-1",
+    content: content,
+    createdBy: "Original Creator",
+    createdAt: new Date(Date.now() - 86400000), // 1 day ago
+    updatedBy: updatedBy,
+    updatedAt: new Date(),
+  };
+}
+
+// Delete a remark - in production, this would DELETE via API
+export function deleteRemark(remarkId: string): boolean {
+  // In production, delete via API
+  return true;
+}
 
 // Mock financial breakdown data - in production, this would come from an API
 export function getFinancialBreakdownByProject(

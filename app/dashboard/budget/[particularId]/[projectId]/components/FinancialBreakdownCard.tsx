@@ -1,3 +1,5 @@
+// app/dashboard/budget/[particularId]/[projectId]/components/FinancialBreakdownCard.tsx
+
 "use client"
 
 import { useState } from "react"
@@ -39,33 +41,6 @@ export function FinancialBreakdownCard({
     <Card
       className="group relative overflow-hidden border-0 shadow-sm bg-white dark:bg-gray-900"
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500 text-white text-xl font-semibold">
-              {code}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 truncate">Financial Summary</h3>
-              <Badge
-                variant="secondary"
-                className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
-              >
-                Budget Overview
-              </Badge>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-8 w-8 p-0 transition-colors ${isFavorite ? "text-yellow-500" : "text-gray-400 hover:text-yellow-500"}`}
-            onClick={() => setIsFavorite(!isFavorite)}
-          >
-            <Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-          </Button>
-        </div>
-      </CardHeader>
-
       <CardContent className="space-y-4">
         <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">{description}</p>
 

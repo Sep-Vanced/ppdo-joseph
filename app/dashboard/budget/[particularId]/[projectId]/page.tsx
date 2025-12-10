@@ -1,3 +1,5 @@
+// app/dashboard/budget/[particularId]/[projectId]/page.tsx
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -19,27 +21,21 @@ export default function ProjectFinancialBreakdownPage() {
   const router = useRouter()
   const params = useParams()
 
+  // Extract projectId from params
+  const projectId = params.projectId as string
+  const particularId = params.particularId as string
+
   useEffect(() => {
-    const auth = localStorage.getItem("authenticated")
-    if (auth === "true") {
-      setIsAuthenticated(true)
-      const particularId = params.particularId as string
-      const projectId = params.projectId as string
-
-      if (particularId && projectId) {
-        setParticular(particularId)
-        // In production, fetch from API
-        const breakdown = getFinancialBreakdownByProject(projectId)
-        setFinancialBreakdown(breakdown)
-
-        // In production, fetch project details from API
-        const projectData = getProjectById(projectId, particularId)
-        setProject(projectData)
-      }
-    } else {
-      router.push("/")
+    // Load project data when params are available
+    if (projectId && particularId) {
+      const projectData = getProjectById(projectId, particularId)
+      setProject(projectData)
+      setParticular(particularId)
+      
+      const breakdown = getFinancialBreakdownByProject(projectId)
+      setFinancialBreakdown(breakdown)
     }
-  }, [router, params])
+  }, [projectId, particularId])
 
   const handleAdd = (item: Omit<FinancialBreakdownItem, "id" | "children">) => {
     // In production, call API
@@ -55,10 +51,6 @@ export default function ProjectFinancialBreakdownPage() {
   const handleDelete = (id: string) => {
     // In production, call API
     setFinancialBreakdown(deleteItemFromHierarchy(financialBreakdown, id))
-  }
-
-  if (!isAuthenticated) {
-    return null
   }
 
   const particularFullName = getParticularFullName(particular)
@@ -101,7 +93,7 @@ export default function ProjectFinancialBreakdownPage() {
 
         {/* Financial Breakdown Table - 3 columns on large screens */}
         <div className="lg:col-span-3">
-          <FinancialBreakdownTabs />
+          <FinancialBreakdownTabs projectId={projectId} />
         </div>
       </div>
     </>

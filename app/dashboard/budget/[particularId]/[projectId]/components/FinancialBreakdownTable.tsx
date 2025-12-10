@@ -1,3 +1,5 @@
+// app/dashboard/budget/[particularId]/[projectId]/components/FinancialBreakdownTable.tsx
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";

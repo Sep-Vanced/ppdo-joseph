@@ -69,3 +69,13 @@ export interface FinancialBreakdownItem {
   level: number; // 0 = main section, 1 = sub-item, 2 = sub-sub-item, etc.
   children?: FinancialBreakdownItem[];
 }
+
+export interface Remark {
+  id: string;
+  projectId: string;
+  content: string;
+  createdBy: string;
+  createdAt: Date;
+  updatedBy: string;
+  updatedAt: Date;
+}
