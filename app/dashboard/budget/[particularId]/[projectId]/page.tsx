@@ -11,7 +11,7 @@ import type { FinancialBreakdownItem, Project } from "../../types"
 import { getParticularFullName } from "../data"
 import { updateItemInHierarchy, deleteItemFromHierarchy, addItemToHierarchy } from "./utils"
 import { FinancialBreakdownCard } from "./components/FinancialBreakdownCard"
-import FinancialBreakdownTabs from "./components/FinancialBreakdownTabs"
+import { FinancialBreakdownTabs } from "./components/FinancialBreakdownTabs"
 
 export default function ProjectFinancialBreakdownPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)

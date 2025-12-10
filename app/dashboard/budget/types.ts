@@ -78,4 +78,5 @@ export interface Remark {
   createdAt: Date;
   updatedBy: string;
   updatedAt: Date;
+  authorRole?: string;
 }
