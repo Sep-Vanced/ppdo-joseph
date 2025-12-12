@@ -15,6 +15,7 @@ import type * as inspections from "../inspections.js";
 import type * as media from "../media.js";
 import type * as myFunctions from "../myFunctions.js";
 import type * as projects from "../projects.js";
+import type * as remarks from "../remarks.js";
 
 import type {
   ApiFromModules,
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   media: typeof media;
   myFunctions: typeof myFunctions;
   projects: typeof projects;
+  remarks: typeof remarks;
 }>;
 
 /**

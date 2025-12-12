@@ -618,6 +618,110 @@ export default defineSchema({
     .index("projectAndDate", ["projectId", "inspectionDate"])
     .index("categoryAndStatus", ["category", "status"]),
 
+  /**
+   * Remarks.
+   * Tracks notes, updates, and comments for projects and inspections.
+   * Each remark can be linked to either a project (general remarks) or 
+   * a specific inspection (inspection-specific remarks).
+   */
+  remarks: defineTable({
+    /**
+     * The project this remark is associated with.
+     * Required - every remark must belong to a project.
+     */
+    projectId: v.id("projects"),
+    
+    /**
+     * Optional: Link to specific inspection if this is an inspection-specific remark.
+     * If null, this is a general project remark.
+     */
+    inspectionId: v.optional(v.id("inspections")),
+    
+    /**
+     * Optional: Link to budget item if this is a budget-level remark.
+     */
+    budgetItemId: v.optional(v.id("budgetItems")),
+    
+    /**
+     * The content/body of the remark.
+     * Can be multi-line text with detailed notes and observations.
+     */
+    content: v.string(),
+    
+    /**
+     * Optional: Category or type of remark for filtering/organization.
+     * Examples: "Budget Utilization", "Timeline", "Quality", "Risk", "General"
+     */
+    category: v.optional(v.string()),
+    
+    /**
+     * Optional: Priority level for the remark.
+     * Helps identify which remarks need immediate attention.
+     * - high: Urgent issues requiring immediate action
+     * - medium: Important but not urgent
+     * - low: Informational or nice-to-have
+     */
+    priority: v.optional(
+      v.union(
+        v.literal("high"),
+        v.literal("medium"),
+        v.literal("low")
+      )
+    ),
+    
+    /**
+     * User who created this remark.
+     * Links to users table to show full name and email.
+     */
+    createdBy: v.id("users"),
+    
+    /**
+     * Timestamp when the remark was created (milliseconds since epoch).
+     */
+    createdAt: v.number(),
+    
+    /**
+     * Timestamp when the remark was last updated (milliseconds since epoch).
+     */
+    updatedAt: v.number(),
+    
+    /**
+     * User who last updated this remark (if different from creator).
+     */
+    updatedBy: v.id("users"),
+    
+    /**
+     * Optional: Tags for flexible categorization and filtering.
+     * JSON array stored as string: ["urgent", "follow-up", "documentation"]
+     */
+    tags: v.optional(v.string()),
+    
+    /**
+     * Optional: Flag for pinned/important remarks that should be prominently displayed.
+     */
+    isPinned: v.optional(v.boolean()),
+    
+    /**
+     * Optional: Attachments or references (JSON string).
+     * Can store links to documents, images, or other related resources.
+     */
+    attachments: v.optional(v.string()),
+  })
+    .index("projectId", ["projectId"])
+    .index("inspectionId", ["inspectionId"])
+    .index("budgetItemId", ["budgetItemId"])
+    .index("createdBy", ["createdBy"])
+    .index("createdAt", ["createdAt"])
+    .index("updatedAt", ["updatedAt"])
+    .index("category", ["category"])
+    .index("priority", ["priority"])
+    .index("projectAndInspection", ["projectId", "inspectionId"])
+    .index("projectAndCategory", ["projectId", "category"])
+    .index("projectAndCreatedAt", ["projectId", "createdAt"])
+    .index("inspectionAndCreatedAt", ["inspectionId", "createdAt"])
+    .index("isPinned", ["isPinned"])
+    .index("createdByAndProject", ["createdBy", "projectId"]),
+
   numbers: defineTable({
     value: v.number(),
   }),
