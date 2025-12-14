@@ -22,6 +22,17 @@ import type * as obligations from "../obligations.js";
 import type * as permissions from "../permissions.js";
 import type * as projects from "../projects.js";
 import type * as remarks from "../remarks.js";
+import type * as schema_audit from "../schema/audit.js";
+import type * as schema_auth from "../schema/auth.js";
+import type * as schema_budgets from "../schema/budgets.js";
+import type * as schema_departments from "../schema/departments.js";
+import type * as schema_inspections from "../schema/inspections.js";
+import type * as schema_media from "../schema/media.js";
+import type * as schema_misc from "../schema/misc.js";
+import type * as schema_permissions from "../schema/permissions.js";
+import type * as schema_projects from "../schema/projects.js";
+import type * as schema_security from "../schema/security.js";
+import type * as schema_users from "../schema/users.js";
 
 import type {
   ApiFromModules,
@@ -44,6 +55,17 @@ declare const fullApi: ApiFromModules<{
   permissions: typeof permissions;
   projects: typeof projects;
   remarks: typeof remarks;
+  "schema/audit": typeof schema_audit;
+  "schema/auth": typeof schema_auth;
+  "schema/budgets": typeof schema_budgets;
+  "schema/departments": typeof schema_departments;
+  "schema/inspections": typeof schema_inspections;
+  "schema/media": typeof schema_media;
+  "schema/misc": typeof schema_misc;
+  "schema/permissions": typeof schema_permissions;
+  "schema/projects": typeof schema_projects;
+  "schema/security": typeof schema_security;
+  "schema/users": typeof schema_users;
 }>;
 
 /**
