@@ -25,6 +25,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Calculator } from "lucide-react";
 
 interface BudgetItem {
   id: string;
@@ -69,39 +76,42 @@ const noWhitespaceString = z
   });
 
 // Define the form schema with Zod
-const budgetItemSchema = z.object({
-  particular: noWhitespaceString,
-  totalBudgetAllocated: z.number().min(0, {
-    message: "Must be 0 or greater.",
-  }),
-  totalBudgetUtilized: z.number().min(0, {
-    message: "Must be 0 or greater.",
-  }),
-  projectCompleted: z.number().min(0, {
-    message: "Must be 0 or greater.",
-  }).max(100, {
-    message: "Must be 100 or less.",
-  }),
-  projectDelayed: z.number().min(0, {
-    message: "Must be 0 or greater.",
-  }).max(100, {
-    message: "Must be 100 or less.",
-  }),
-  projectsOnTrack: z.number().min(0, {
-    message: "Must be 0 or greater.",
-  }).max(100, {
-    message: "Must be 100 or less.",
-  }),
-}).refine(
-  (data) => {
-    const total = data.projectCompleted + data.projectDelayed + data.projectsOnTrack;
-    return total <= 100;
-  },
-  {
-    message: "Total project percentages cannot exceed 100%.",
-    path: ["projectsOnTrack"], // Show error on the last field
-  }
-);
+const budgetItemSchema = z
+  .object({
+    particular: noWhitespaceString,
+    totalBudgetAllocated: z.number().min(0, {
+      message: "Must be 0 or greater.",
+    }),
+    totalBudgetUtilized: z.number().min(0, {
+      message: "Must be 0 or greater.",
+    }),
+    projectCompleted: z.number().min(0, {
+      message: "Must be 0 or greater.",
+    }).max(100, {
+      message: "Must be 100 or less.",
+    }),
+    projectDelayed: z.number().min(0, {
+      message: "Must be 0 or greater.",
+    }).max(100, {
+      message: "Must be 100 or less.",
+    }),
+    projectsOnTrack: z.number().min(0, {
+      message: "Must be 0 or greater.",
+    }).max(100, {
+      message: "Must be 100 or less.",
+    }),
+  })
+  .refine(
+    (data) => {
+      const total =
+        data.projectCompleted + data.projectDelayed + data.projectsOnTrack;
+      return total <= 100;
+    },
+    {
+      message: "Total project percentages cannot exceed 100%.",
+      path: ["projectsOnTrack"], // Show error on the last field
+    }
+  );
 
 type BudgetItemFormValues = z.infer<typeof budgetItemSchema>;
 
@@ -121,7 +131,7 @@ export function BudgetItemForm({
   // Load saved draft from localStorage (only for new items)
   const getSavedDraft = () => {
     if (item) return null; // Don't load draft when editing
-    
+
     try {
       const saved = localStorage.getItem(FORM_STORAGE_KEY);
       if (saved) {
@@ -153,7 +163,8 @@ export function BudgetItemForm({
 
   // Auto-save draft to localStorage (only for new items)
   useEffect(() => {
-    if (!item) { // Only save draft when creating new item
+    if (!item) {
+      // Only save draft when creating new item
       const timer = setTimeout(() => {
         try {
           localStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(formValues));
@@ -303,10 +314,10 @@ export function BudgetItemForm({
           />
         </div>
 
-        {/* Utilization Rate Preview */}
+        {/* Utilization Rate Preview with Formula Accordion */}
         {totalBudgetAllocated > 0 && (
-          <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-800">
-            <div className="flex items-center justify-between">
+          <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="flex items-center justify-between p-4">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Utilization Rate (calculated):
               </span>
@@ -317,6 +328,80 @@ export function BudgetItemForm({
                 {utilizationRate.toFixed(2)}%
               </span>
             </div>
+
+            {/* Formula Accordion */}
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="formula" className="border-none">
+                <AccordionTrigger className="px-4 pb-3 pt-0 hover:no-underline">
+                  <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>How is this calculated?</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-3 text-xs">
+                    {/* Formula Explanation */}
+                    <div>
+                      <p className="text-zinc-600 dark:text-zinc-400 mb-2">
+                        The utilization rate shows how much of your budget you've used.
+                      </p>
+                      <div className="bg-white dark:bg-zinc-900 rounded p-2.5 font-mono text-xs border border-zinc-200 dark:border-zinc-700">
+                        (Budget Utilized ÷ Budget Allocated) × 100
+                      </div>
+                    </div>
+
+                    {/* Current Calculation */}
+                    <div>
+                      <p className="text-zinc-600 dark:text-zinc-400 mb-2 font-medium">
+                        Your calculation:
+                      </p>
+                      <div className="bg-white dark:bg-zinc-900 rounded p-2.5 font-mono text-xs border border-zinc-200 dark:border-zinc-700">
+                        ({totalBudgetUtilized.toFixed(2)} ÷{" "}
+                        {totalBudgetAllocated.toFixed(2)}) × 100 ={" "}
+                        {utilizationRate.toFixed(2)}%
+                      </div>
+                    </div>
+
+                    {/* Example */}
+                    <div>
+                      <p className="text-zinc-500 dark:text-zinc-500 font-medium mb-1">
+                        Example:
+                      </p>
+                      <p className="text-zinc-500 dark:text-zinc-500">
+                        If you have $100 allocated and spent $75, your utilization rate is 75%
+                      </p>
+                    </div>
+
+                    {/* Color Indicators */}
+                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                      <p className="text-zinc-600 dark:text-zinc-400 font-medium mb-2">
+                        Color meanings:
+                      </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-green-600"></div>
+                          <span className="text-zinc-600 dark:text-zinc-400">
+                            Green: Good (under 60%)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-orange-600"></div>
+                          <span className="text-zinc-600 dark:text-zinc-400">
+                            Orange: Warning (60-80%)
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-600"></div>
+                          <span className="text-zinc-600 dark:text-zinc-400">
+                            Red: Alert (over 80%)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         )}
 

@@ -8,13 +8,16 @@
  * @module
  */
 
+import type * as accessRequests from "../accessRequests.js";
 import type * as auth from "../auth.js";
 import type * as blockedManagement from "../blockedManagement.js";
+import type * as budgetAccess from "../budgetAccess.js";
 import type * as budgetItems from "../budgetItems.js";
 import type * as config_onboardingConfig from "../config/onboardingConfig.js";
 import type * as departments from "../departments.js";
 import type * as http from "../http.js";
 import type * as inspections from "../inspections.js";
+import type * as lib_checkBudgetAccess from "../lib/checkBudgetAccess.js";
 import type * as lib_rbac from "../lib/rbac.js";
 import type * as loginTrail from "../loginTrail.js";
 import type * as media from "../media.js";
@@ -23,6 +26,7 @@ import type * as obligations from "../obligations.js";
 import type * as permissions from "../permissions.js";
 import type * as projects from "../projects.js";
 import type * as remarks from "../remarks.js";
+import type * as schema_accessRequests from "../schema/accessRequests.js";
 import type * as schema_audit from "../schema/audit.js";
 import type * as schema_auth from "../schema/auth.js";
 import type * as schema_budgets from "../schema/budgets.js";
@@ -42,13 +46,16 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accessRequests: typeof accessRequests;
   auth: typeof auth;
   blockedManagement: typeof blockedManagement;
+  budgetAccess: typeof budgetAccess;
   budgetItems: typeof budgetItems;
   "config/onboardingConfig": typeof config_onboardingConfig;
   departments: typeof departments;
   http: typeof http;
   inspections: typeof inspections;
+  "lib/checkBudgetAccess": typeof lib_checkBudgetAccess;
   "lib/rbac": typeof lib_rbac;
   loginTrail: typeof loginTrail;
   media: typeof media;
@@ -57,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   permissions: typeof permissions;
   projects: typeof projects;
   remarks: typeof remarks;
+  "schema/accessRequests": typeof schema_accessRequests;
   "schema/audit": typeof schema_audit;
   "schema/auth": typeof schema_auth;
   "schema/budgets": typeof schema_budgets;

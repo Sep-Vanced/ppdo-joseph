@@ -4,11 +4,15 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { BudgetItem } from "../types";
 import { useAccentColor } from "../../contexts/AccentColorContext";
 import { Modal } from "./Modal";
 import { ConfirmationModal } from "./ConfirmationModal";
 import { BudgetItemForm } from "./BudgetItemForm";
+import BudgetShareModal from "./BudgetShareModal";
+import { Share2 } from "lucide-react";
 
 interface BudgetTrackingTableProps {
   budgetItems: BudgetItem[];
@@ -27,13 +31,21 @@ export function BudgetTrackingTable({
 }: BudgetTrackingTableProps) {
   const { accentColorValue } = useAccentColor();
   const router = useRouter();
+  const accessCheck = useQuery(api.budgetAccess.canAccess);
+  const pendingRequestsCount = useQuery(api.accessRequests.getPendingCount);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<BudgetItem | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
   const [hasDraft, setHasDraft] = useState(false);
+
+  // Check if user is admin or super_admin
+  const isAdmin =
+    accessCheck?.user?.role === "admin" ||
+    accessCheck?.user?.role === "super_admin";
 
   useEffect(() => {
     // Check if there's a saved draft
@@ -45,7 +57,7 @@ export function BudgetTrackingTable({
         setHasDraft(false);
       }
     };
-    
+
     checkDraft();
     // Check periodically while modal is open
     const interval = setInterval(checkDraft, 1000);
@@ -164,13 +176,33 @@ export function BudgetTrackingTable({
             Budget Items
           </h3>
           <div className="flex items-center gap-2">
+            {/* Share Button - Only visible to admins */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="relative px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                title="Share & Manage Access"
+              >
+                <div className="flex items-center gap-2">
+                  <Share2 className="w-4 h-4" />
+                  Share
+                </div>
+                {/* Badge for pending requests */}
+                {pendingRequestsCount !== undefined &&
+                  pendingRequestsCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {pendingRequestsCount > 9 ? "9+" : pendingRequestsCount}
+                    </span>
+                  )}
+              </button>
+            )}
             {expandButton}
             <button
               onClick={handlePrint}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
               title="Print"
             >
-              <div className="cursor-pointer  flex items-center gap-2">
+              <div className="cursor-pointer flex items-center gap-2">
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -201,9 +233,12 @@ export function BudgetTrackingTable({
 
         {/* Print Header */}
         <div className="hidden print-only p-4 border-b border-zinc-900">
-          <h2 className="text-xl font-bold text-zinc-900 mb-2">Budget Tracking</h2>
+          <h2 className="text-xl font-bold text-zinc-900 mb-2">
+            Budget Tracking
+          </h2>
           <p className="text-sm text-zinc-700">
-            Generated on: {new Date().toLocaleDateString("en-US", {
+            Generated on:{" "}
+            {new Date().toLocaleDateString("en-US", {
               year: "numeric",
               month: "long",
               day: "numeric",
@@ -276,7 +311,12 @@ export function BudgetTrackingTable({
                           className="px-4 sm:px-6 py-4 text-center no-print"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="relative" ref={(el) => { menuRefs.current[item.id] = el; }}>
+                          <div
+                            className="relative"
+                            ref={(el) => {
+                              menuRefs.current[item.id] = el;
+                            }}
+                          >
                             <button
                               onClick={(e) => handleMenuToggle(item.id, e)}
                               className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -436,7 +476,10 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {(totals.projectCompleted / budgetItems.length).toFixed(1)}%
+                        {(totals.projectCompleted / budgetItems.length).toFixed(
+                          1
+                        )}
+                        %
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -444,7 +487,8 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {(totals.projectDelayed / budgetItems.length).toFixed(1)}%
+                        {(totals.projectDelayed / budgetItems.length).toFixed(1)}
+                        %
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -452,7 +496,10 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {(totals.projectsOnTrack / budgetItems.length).toFixed(1)}%
+                        {(totals.projectsOnTrack / budgetItems.length).toFixed(
+                          1
+                        )}
+                        %
                       </span>
                     </td>
                   </tr>
@@ -525,6 +572,14 @@ export function BudgetTrackingTable({
           message={`Are you sure you want to delete "${selectedItem.particular}"? This action cannot be undone.`}
           confirmText="Delete"
           variant="danger"
+        />
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <BudgetShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
         />
       )}
     </>

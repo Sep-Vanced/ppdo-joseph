@@ -6,9 +6,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { BudgetTrackingTable } from "./components/BudgetTrackingTable";
 import { Id } from "@/convex/_generated/dataModel";
-import { Expand, X } from 'lucide-react';
-import { useState } from 'react';
-import MainSheet from './components/MainSheet';
+import { Expand, X } from "lucide-react";
+import { useState } from "react";
+import MainSheet from "./components/MainSheet";
+import AccessDeniedPage from "@/components/AccessDeniedPage";
 
 interface BudgetItemFromDB {
   _id: Id<"budgetItems">;
@@ -39,12 +40,40 @@ interface BudgetItemForUI {
 }
 
 export default function BudgetTrackingPage() {
+  // Check access first
+  const accessCheck = useQuery(api.budgetAccess.canAccess);
   const budgetItemsFromDB = useQuery(api.budgetItems.list);
   const statistics = useQuery(api.budgetItems.getStatistics);
   const createBudgetItem = useMutation(api.budgetItems.create);
   const updateBudgetItem = useMutation(api.budgetItems.update);
   const deleteBudgetItem = useMutation(api.budgetItems.remove);
   const [isExpandModalOpen, setIsExpandModalOpen] = useState(false);
+
+  // Loading state
+  if (accessCheck === undefined) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-zinc-200 dark:border-zinc-800 border-t-zinc-900 dark:border-t-zinc-100 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Checking access permissions...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Access denied - show access denied page
+  if (!accessCheck.canAccess) {
+    return (
+      <AccessDeniedPage
+        userName={accessCheck.user?.name || ""}
+        userEmail={accessCheck.user?.email || ""}
+        departmentName={accessCheck.department?.name || "Not Assigned"}
+        pageRequested="Budget Tracking"
+      />
+    );
+  }
 
   // Transform database items to UI format
   const budgetData: BudgetItemForUI[] =
@@ -59,7 +88,9 @@ export default function BudgetTrackingPage() {
       projectsOnTrack: item.projectsOnTrack,
     })) ?? [];
 
-  const handleAdd = async (item: Omit<BudgetItemForUI, "id" | "utilizationRate">) => {
+  const handleAdd = async (
+    item: Omit<BudgetItemForUI, "id" | "utilizationRate">
+  ) => {
     try {
       await createBudgetItem({
         particulars: item.particular,
@@ -199,10 +230,16 @@ export default function BudgetTrackingPage() {
           expandButton={
             <button
               onClick={handleExpand}
-              className="cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              className="hidden cursor-pointer items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <Expand className="w-4 h-4" />
             </button>
+            // <button
+            //   onClick={handleExpand}
+            //   className="cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            // >
+            //   <Expand className="w-4 h-4" />
+            // </button>
           }
         />
       </div>
