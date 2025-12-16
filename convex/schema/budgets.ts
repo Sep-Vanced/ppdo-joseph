@@ -39,6 +39,21 @@ export const budgetTables = {
     targetDateCompletion: v.optional(v.number()),
     
     /**
+     * Whether this budget item is pinned
+     */
+    isPinned: v.optional(v.boolean()),
+    
+    /**
+     * Timestamp when pinned
+     */
+    pinnedAt: v.optional(v.number()),
+    
+    /**
+     * User who pinned this item
+     */
+    pinnedBy: v.optional(v.id("users")),
+    
+    /**
      * Department responsible for this budget item
      */
     departmentId: v.optional(v.id("departments")),
@@ -63,7 +78,9 @@ export const budgetTables = {
     .index("departmentAndYear", ["departmentId", "fiscalYear"])
     .index("year", ["year"])
     .index("status", ["status"])
-    .index("yearAndStatus", ["year", "status"]),
+    .index("yearAndStatus", ["year", "status"])
+    .index("isPinned", ["isPinned"])
+    .index("pinnedAt", ["pinnedAt"]),
 
   /**
    * Obligations.

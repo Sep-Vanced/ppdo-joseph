@@ -12,6 +12,40 @@ export interface BudgetItem {
   year?: number;
   status?: "done" | "pending" | "ongoing";
   targetDateCompletion?: number;
+  isPinned?: boolean;
+  pinnedAt?: number;
+  pinnedBy?: string;
+}
+
+export type SortDirection = "asc" | "desc" | null;
+export type SortField = keyof BudgetItem | null;
+
+export interface ColumnFilter {
+  field: keyof BudgetItem;
+  value: any;
+}
+
+export interface BudgetItemFromDB {
+  _id: string;
+  _creationTime: number;
+  particulars: string;
+  totalBudgetAllocated: number;
+  totalBudgetUtilized: number;
+  utilizationRate: number;
+  projectCompleted: number;
+  projectDelayed: number;
+  projectsOnTrack: number;
+  notes?: string;
+  year?: number;
+  status?: "done" | "pending" | "ongoing";
+  targetDateCompletion?: number;
+  isPinned?: boolean;
+  pinnedAt?: number;
+  pinnedBy?: string;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  updatedBy?: string;
 }
 
 export interface Project {

@@ -22,6 +22,12 @@ interface BudgetItemFromDB {
   projectDelayed: number;
   projectsOnTrack: number;
   notes?: string;
+  year?: number;
+  status?: "done" | "pending" | "ongoing";
+  targetDateCompletion?: number;
+  isPinned?: boolean;
+  pinnedAt?: number;
+  pinnedBy?: Id<"users">;
   createdBy: Id<"users">;
   createdAt: number;
   updatedAt: number;
@@ -37,6 +43,12 @@ interface BudgetItemForUI {
   projectCompleted: number;
   projectDelayed: number;
   projectsOnTrack: number;
+  year?: number;
+  status?: "done" | "pending" | "ongoing";
+  targetDateCompletion?: number;
+  isPinned?: boolean;
+  pinnedAt?: number;
+  pinnedBy?: string;
 }
 
 export default function BudgetTrackingPage() {
@@ -75,7 +87,7 @@ export default function BudgetTrackingPage() {
     );
   }
 
-  // Transform database items to UI format
+  // Transform database items to UI format - FIXED: Include all fields
   const budgetData: BudgetItemForUI[] =
     budgetItemsFromDB?.map((item: BudgetItemFromDB) => ({
       id: item._id,
@@ -86,6 +98,12 @@ export default function BudgetTrackingPage() {
       projectCompleted: item.projectCompleted,
       projectDelayed: item.projectDelayed,
       projectsOnTrack: item.projectsOnTrack,
+      year: item.year,
+      status: item.status,
+      targetDateCompletion: item.targetDateCompletion,
+      isPinned: item.isPinned,
+      pinnedAt: item.pinnedAt,
+      pinnedBy: item.pinnedBy,
     })) ?? [];
 
   const handleAdd = async (
@@ -99,6 +117,9 @@ export default function BudgetTrackingPage() {
         projectCompleted: item.projectCompleted,
         projectDelayed: item.projectDelayed,
         projectsOnTrack: item.projectsOnTrack,
+        year: item.year,
+        status: item.status,
+        targetDateCompletion: item.targetDateCompletion,
       });
     } catch (error) {
       console.error("Error creating budget item:", error);
@@ -122,6 +143,9 @@ export default function BudgetTrackingPage() {
         projectCompleted: item.projectCompleted,
         projectDelayed: item.projectDelayed,
         projectsOnTrack: item.projectsOnTrack,
+        year: item.year,
+        status: item.status,
+        targetDateCompletion: item.targetDateCompletion,
       });
     } catch (error) {
       console.error("Error updating budget item:", error);
@@ -188,7 +212,7 @@ export default function BudgetTrackingPage() {
             Total Budget Allocated
           </p>
           <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {statistics.totalAllocated}
+            ₱{statistics.totalAllocated.toLocaleString()}
           </p>
         </div>
 
@@ -197,7 +221,7 @@ export default function BudgetTrackingPage() {
             Total Budget Utilized
           </p>
           <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {statistics.totalUtilized}
+            ₱{statistics.totalUtilized.toLocaleString()}
           </p>
         </div>
 
@@ -234,12 +258,6 @@ export default function BudgetTrackingPage() {
             >
               <Expand className="w-4 h-4" />
             </button>
-            // <button
-            //   onClick={handleExpand}
-            //   className="cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-            // >
-            //   <Expand className="w-4 h-4" />
-            // </button>
           }
         />
       </div>

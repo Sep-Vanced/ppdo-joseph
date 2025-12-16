@@ -6,6 +6,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 
 /**
  * Get all budget items ordered by creation date (newest first)
+ * Pinned items will appear first
  */
 export const list = query({
   args: {},
@@ -21,7 +22,21 @@ export const list = query({
       .order("desc")
       .collect();
 
-    return budgetItems;
+    // Sort: pinned items first (by pinnedAt desc), then unpinned items
+    const sortedItems = budgetItems.sort((a, b) => {
+      // Both pinned - sort by pinnedAt (most recent first)
+      if (a.isPinned && b.isPinned) {
+        return (b.pinnedAt || 0) - (a.pinnedAt || 0);
+      }
+      // Only a is pinned
+      if (a.isPinned) return -1;
+      // Only b is pinned
+      if (b.isPinned) return 1;
+      // Neither pinned - sort by creation time
+      return b._creationTime - a._creationTime;
+    });
+
+    return sortedItems;
   },
 });
 
@@ -123,6 +138,7 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
       updatedBy: userId,
+      isPinned: false,
     };
 
     // Only add optional fields if they have values
@@ -221,6 +237,92 @@ export const remove = mutation({
 
     await ctx.db.delete(args.id);
     return args.id;
+  },
+});
+
+/**
+ * Pin a budget item to the top of the list
+ */
+export const pin = mutation({
+  args: {
+    id: v.id("budgetItems"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get the user to check role
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if user has access (admin or super_admin)
+    if (user.role !== "admin" && user.role !== "super_admin") {
+      throw new Error("Unauthorized: Only admins can pin items");
+    }
+
+    // Get the budget item
+    const budgetItem = await ctx.db.get(args.id);
+    if (!budgetItem) {
+      throw new Error("Budget item not found");
+    }
+
+    // Update the budget item
+    await ctx.db.patch(args.id, {
+      isPinned: true,
+      pinnedAt: Date.now(),
+      pinnedBy: userId,
+      updatedAt: Date.now(),
+      updatedBy: userId,
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Unpin a budget item
+ */
+export const unpin = mutation({
+  args: {
+    id: v.id("budgetItems"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get the user to check role
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Check if user has access (admin or super_admin)
+    if (user.role !== "admin" && user.role !== "super_admin") {
+      throw new Error("Unauthorized: Only admins can unpin items");
+    }
+
+    // Get the budget item
+    const budgetItem = await ctx.db.get(args.id);
+    if (!budgetItem) {
+      throw new Error("Budget item not found");
+    }
+
+    // Update the budget item
+    await ctx.db.patch(args.id, {
+      isPinned: false,
+      pinnedAt: undefined,
+      pinnedBy: undefined,
+      updatedAt: Date.now(),
+      updatedBy: userId,
+    });
+
+    return { success: true };
   },
 });
 

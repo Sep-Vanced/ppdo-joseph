@@ -8,7 +8,6 @@ import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { Breadcrumbs } from "./components/Breadcrumbs";
 import { TimeLocation } from "./components/TimeLocation";
-import AIAssistant from "./components/AIAssistant";
 import { SearchProvider } from "./contexts/SearchContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
 import { AccentColorProvider } from "./contexts/AccentColorContext";
@@ -57,7 +56,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* AI Assistant */}
-      <AIAssistant />
+      {/* <AIAssistant /> */}
 
       {/* Global Onboarding Modal */}
       <OnboardingModal />
