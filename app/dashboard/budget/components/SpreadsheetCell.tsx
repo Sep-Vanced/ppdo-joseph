@@ -1,6 +1,7 @@
 // components/SpreadsheetCell.tsx
 "use client"
 
+import { useEffect, useRef } from "react"
 import type { CellData } from "@/types/spreadsheet"
 
 interface SpreadsheetCellProps {
@@ -12,6 +13,7 @@ interface SpreadsheetCellProps {
   onDoubleClick: () => void
   onChange: (value: string) => void
   onBlur: () => void
+  dataCellAttr?: string
 }
 
 export function SpreadsheetCell({
@@ -23,7 +25,17 @@ export function SpreadsheetCell({
   onDoubleClick,
   onChange,
   onBlur,
+  dataCellAttr,
 }: SpreadsheetCellProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [isEditing])
+
   return (
     <div
       className={`relative h-[21px] w-[100px] border-b border-r border-gray-300 ${
@@ -31,14 +43,25 @@ export function SpreadsheetCell({
       }`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      data-cell={dataCellAttr}
     >
       {isEditing ? (
         <input
-          autoFocus
+          ref={inputRef}
           type="text"
           value={cellData[cellKey] || ""}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Tab") {
+              e.preventDefault()
+              onBlur()
+            }
+            if (e.key === "Escape") {
+              e.preventDefault()
+              onBlur()
+            }
+          }}
           className="h-full w-full border-none px-1 text-xs outline-none"
         />
       ) : (

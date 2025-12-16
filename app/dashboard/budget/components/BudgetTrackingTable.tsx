@@ -34,19 +34,6 @@ export function BudgetTrackingTable({
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatPercentage = (value: number): string => {
-    return `${value.toFixed(1)}%`;
-  };
-
   const getUtilizationColor = (rate: number): string => {
     if (rate >= 80) return "text-red-600 dark:text-red-400";
     if (rate >= 60) return "text-orange-600 dark:text-orange-400";
@@ -165,7 +152,7 @@ export function BudgetTrackingTable({
               className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
               title="Print"
             >
-              <div className="flex items-center gap-2">
+              <div className="cursor-pointer  flex items-center gap-2">
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -185,7 +172,7 @@ export function BudgetTrackingTable({
             {onAdd && (
               <button
                 onClick={() => setShowAddModal(true)}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md text-white"
+                className="cursor-pointer px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md text-white"
                 style={{ backgroundColor: accentColorValue }}
               >
                 Add New Item
@@ -347,12 +334,12 @@ export function BudgetTrackingTable({
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-right">
                         <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                          {formatCurrency(item.totalBudgetAllocated)}
+                          {item.totalBudgetAllocated}
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-right">
                         <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                          {formatCurrency(item.totalBudgetUtilized)}
+                          {item.totalBudgetUtilized}
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-right">
@@ -361,7 +348,7 @@ export function BudgetTrackingTable({
                             item.utilizationRate
                           )}`}
                         >
-                          {formatPercentage(item.utilizationRate)}
+                          {item.utilizationRate.toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-right">
@@ -370,7 +357,7 @@ export function BudgetTrackingTable({
                             item.projectCompleted
                           )}`}
                         >
-                          {formatPercentage(item.projectCompleted)}
+                          {item.projectCompleted.toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-right">
@@ -379,7 +366,7 @@ export function BudgetTrackingTable({
                             item.projectDelayed
                           )}`}
                         >
-                          {formatPercentage(item.projectDelayed)}
+                          {item.projectDelayed.toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-4 sm:px-6 py-4 text-right">
@@ -388,7 +375,7 @@ export function BudgetTrackingTable({
                             item.projectsOnTrack
                           )}`}
                         >
-                          {formatPercentage(item.projectsOnTrack)}
+                          {item.projectsOnTrack.toFixed(1)}%
                         </span>
                       </td>
                     </tr>
@@ -406,7 +393,7 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {formatCurrency(totals.totalBudgetAllocated)}
+                        {totals.totalBudgetAllocated}
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -414,7 +401,7 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {formatCurrency(totals.totalBudgetUtilized)}
+                        {totals.totalBudgetUtilized}
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -423,7 +410,7 @@ export function BudgetTrackingTable({
                           totalUtilizationRate
                         )}`}
                       >
-                        {formatPercentage(totalUtilizationRate)}
+                        {totalUtilizationRate.toFixed(1)}%
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -431,9 +418,7 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {formatPercentage(
-                          totals.projectCompleted / budgetItems.length
-                        )}
+                        {(totals.projectCompleted / budgetItems.length).toFixed(1)}%
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -441,9 +426,7 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {formatPercentage(
-                          totals.projectDelayed / budgetItems.length
-                        )}
+                        {(totals.projectDelayed / budgetItems.length).toFixed(1)}%
                       </span>
                     </td>
                     <td className="px-4 sm:px-6 py-4 text-right">
@@ -451,9 +434,7 @@ export function BudgetTrackingTable({
                         className="text-sm"
                         style={{ color: accentColorValue }}
                       >
-                        {formatPercentage(
-                          totals.projectsOnTrack / budgetItems.length
-                        )}
+                        {(totals.projectsOnTrack / budgetItems.length).toFixed(1)}%
                       </span>
                     </td>
                   </tr>

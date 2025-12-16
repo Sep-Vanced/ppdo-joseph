@@ -157,12 +157,7 @@ export default function BudgetTrackingPage() {
             Total Budget Allocated
           </p>
           <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {new Intl.NumberFormat("en-PH", {
-              style: "currency",
-              currency: "PHP",
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            }).format(statistics.totalAllocated)}
+            {statistics.totalAllocated}
           </p>
         </div>
 
@@ -171,12 +166,7 @@ export default function BudgetTrackingPage() {
             Total Budget Utilized
           </p>
           <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {new Intl.NumberFormat("en-PH", {
-              style: "currency",
-              currency: "PHP",
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0,
-            }).format(statistics.totalUtilized)}
+            {statistics.totalUtilized}
           </p>
         </div>
 
@@ -209,7 +199,7 @@ export default function BudgetTrackingPage() {
           expandButton={
             <button
               onClick={handleExpand}
-              className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              className="cursor-pointer inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <Expand className="w-4 h-4" />
             </button>
@@ -225,7 +215,7 @@ export default function BudgetTrackingPage() {
             {/* Close Button */}
             <button
               onClick={() => setIsExpandModalOpen(false)}
-              className="absolute top-4 right-4 z-50 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shadow-lg"
+              className="absolute top-1.5 right-4 z-50 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shadow-md"
               title="Close"
             >
               <X className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
