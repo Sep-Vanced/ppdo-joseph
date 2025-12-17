@@ -17,6 +17,7 @@ import { budgetSharedAccessTables } from "./schema/budgetSharedAccess";
 import { passwordResetTables } from "./schema/passwordReset";
 import { govtProjectBreakdownTables } from "./schema/govtProjectBreakdowns";
 import { aggregationTables } from "./schema/aggregations";
+import { govtProjectBreakdownActivityTables } from "./schema/govtProjectBreakdownActivities"; // <--- ADD THIS
 
 export default defineSchema({
   ...authTables,
@@ -34,5 +35,6 @@ export default defineSchema({
   ...passwordResetTables,
   ...miscTables,
   ...govtProjectBreakdownTables,
-  ...aggregationTables, // <--- NEW: Generic aggregation system
+  ...aggregationTables,
+  ...govtProjectBreakdownActivityTables,
 });
