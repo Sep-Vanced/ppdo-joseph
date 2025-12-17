@@ -15,6 +15,7 @@ import { miscTables } from "./schema/misc";
 import { accessRequestTables } from "./schema/accessRequests";
 import { budgetSharedAccessTables } from "./schema/budgetSharedAccess";
 import { passwordResetTables } from "./schema/passwordReset";
+import { govtProjectBreakdownTables } from "./schema/govtProjectBreakdowns";
 
 export default defineSchema({
   ...authTables,
@@ -31,4 +32,5 @@ export default defineSchema({
   ...budgetSharedAccessTables,
   ...passwordResetTables,
   ...miscTables,
+  ...govtProjectBreakdownTables, // <--- NEW REGISTRATION
 });
