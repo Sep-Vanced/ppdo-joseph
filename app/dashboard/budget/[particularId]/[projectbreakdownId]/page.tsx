@@ -15,13 +15,15 @@ import { BreakdownForm } from "./components/BreakdownForm";
 import { Modal } from "../../components/Modal";
 import { ConfirmationModal } from "../../components/ConfirmationModal";
 import { toast } from "sonner";
-import { ActivityLogSheet } from "../../../components/ActivityLogSheet"; // Imported the new sheet
+import { ActivityLogSheet } from "../../../components/ActivityLogSheet";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 
 // Define the Breakdown type based on your Convex schema
 interface Breakdown {
@@ -80,6 +82,8 @@ const extractProjectId = (slugWithId: string): string => {
   return parts[parts.length - 1];
 };
 
+const STORAGE_KEY = "project-breakdown-header-visibility";
+
 export default function ProjectBreakdownPage() {
   const router = useRouter();
   const params = useParams();
@@ -88,11 +92,30 @@ export default function ProjectBreakdownPage() {
   const particularId = decodeURIComponent(params.particularId as string);
   const slugWithId = params.projectbreakdownId as string;
   const projectId = extractProjectId(slugWithId);
+  
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBreakdown, setSelectedBreakdown] = useState<Breakdown | null>(null);
+  
+  // Header visibility state - default hidden, load from localStorage
+  const [showHeader, setShowHeader] = useState(false);
+
+  // Load visibility preference from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved !== null) {
+      setShowHeader(saved === "true");
+    }
+  }, []);
+
+  // Toggle visibility and save to localStorage
+  const toggleHeaderVisibility = () => {
+    const newValue = !showHeader;
+    setShowHeader(newValue);
+    localStorage.setItem(STORAGE_KEY, String(newValue));
+  };
 
   // Get the project details
   const project = useQuery(
@@ -209,7 +232,7 @@ export default function ProjectBreakdownPage() {
         reportDate: breakdownData.reportDate || Date.now(),
         batchId: breakdownData.batchId,
         fundSource: breakdownData.fundSource,
-        reason: "Created via dashboard form", // Add audit reason
+        reason: "Created via dashboard form",
       });
       toast.success("Breakdown record created successfully!");
       setShowAddModal(false);
@@ -252,7 +275,7 @@ export default function ProjectBreakdownPage() {
         district: breakdownData.district,
         municipality: breakdownData.municipality,
         barangay: breakdownData.barangay,
-        reason: "Updated via dashboard edit form", // Add audit reason
+        reason: "Updated via dashboard edit form",
       });
       toast.success("Breakdown record updated successfully!");
       setShowEditModal(false);
@@ -282,7 +305,7 @@ export default function ProjectBreakdownPage() {
 
       await deleteBreakdown({
         breakdownId: selectedBreakdown._id as Id<"govtProjectBreakdowns">,
-        reason: "Deleted via dashboard confirmation", // Add audit reason
+        reason: "Deleted via dashboard confirmation",
       });
       toast.success("Breakdown record deleted successfully!");
       setShowDeleteModal(false);
@@ -324,9 +347,9 @@ export default function ProjectBreakdownPage() {
 
   return (
     <>
-      {/* Header with Activity Log Trigger */}
+      {/* Header with Toggle and Activity Log Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6 no-print">
-        <div>
+        <div className="flex-1">
           <Link
             href={`/dashboard/budget/${encodeURIComponent(particularId)}`}
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 mb-4 transition-colors"
@@ -347,31 +370,51 @@ export default function ProjectBreakdownPage() {
             Back to Projects
           </Link>
 
-          <h1
-            className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
-            style={{ fontFamily: "var(--font-cinzel), serif" }}
-          >
-            {project?.projectName || "Loading..."}
-          </h1>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            Historical breakdown and progress tracking
-          </p>
+          {showHeader && (
+            <>
+              <h1
+                className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                style={{ fontFamily: "var(--font-cinzel), serif" }}
+              >
+                {project?.projectName || "Loading..."}
+              </h1>
+              <p className="text-zinc-600 dark:text-zinc-400">
+                Historical breakdown and progress tracking
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Activity Log Sheet Trigger */}
-        <div className="mt-2 sm:mt-0">
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 mt-2 sm:mt-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleHeaderVisibility}
+            className="gap-2 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            {showHeader ? (
+              <>
+                <EyeOff className="w-4 h-4" />
+                <span className="hidden sm:inline">Hide Details</span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4" />
+                <span className="hidden sm:inline">Show Details</span>
+              </>
+            )}
+          </Button>
           {project && (
             <ActivityLogSheet 
               projectName={project.projectName}
-              // Optionally pass implementingOffice if this page view is specific to one office
-              // implementingOffice={project.departmentName}
             />
           )}
         </div>
       </div>
 
-      {/* Project Overview Cards */}
-      {project && (
+      {/* Project Overview Cards - Conditionally Rendered */}
+      {showHeader && project && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-6 no-print">
           <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
             <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">
@@ -431,8 +474,8 @@ export default function ProjectBreakdownPage() {
         </div>
       )}
 
-      {/* Summary Statistics Accordion */}
-      {stats && (
+      {/* Summary Statistics Accordion - Conditionally Rendered */}
+      {showHeader && stats && (
         <div className="mb-6 no-print">
           <Accordion type="single" collapsible>
             <AccordionItem value="statistics" className="border-none">

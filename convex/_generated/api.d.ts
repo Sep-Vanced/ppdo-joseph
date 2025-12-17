@@ -52,6 +52,7 @@ import type * as schema_security from "../schema/security.js";
 import type * as schema_tableSettings from "../schema/tableSettings.js";
 import type * as schema_users from "../schema/users.js";
 import type * as tableSettings from "../tableSettings.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -104,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   "schema/tableSettings": typeof schema_tableSettings;
   "schema/users": typeof schema_users;
   tableSettings: typeof tableSettings;
+  users: typeof users;
 }>;
 
 /**
