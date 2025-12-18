@@ -3,6 +3,8 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+// 🆕 Import aggregation logic
+import { recalculateBudgetItemMetrics } from "./lib/budgetAggregation";
 
 /**
  * Get all projects ordered by creation date (newest first)
@@ -36,15 +38,11 @@ export const list = query({
 
     // Sort: pinned items first (by pinnedAt desc), then unpinned items
     const sortedProjects = projects.sort((a, b) => {
-      // Both pinned - sort by pinnedAt (most recent first)
       if (a.isPinned && b.isPinned) {
         return (b.pinnedAt || 0) - (a.pinnedAt || 0);
       }
-      // Only a is pinned
       if (a.isPinned) return -1;
-      // Only b is pinned
       if (b.isPinned) return 1;
-      // Neither pinned - sort by creation time
       return b._creationTime - a._creationTime;
     });
 
@@ -129,11 +127,12 @@ export const getByProjectName = query({
 
 /**
  * Create a new project
- * Accepts 'particulars' from frontend, stores as 'projectName' in database
+ * Auto-triggers metrics recalculation on parent budget item
  */
 export const create = mutation({
   args: {
     particulars: v.string(), // Frontend sends 'particulars'
+    budgetItemId: v.id("budgetItems"), // 🆕 NOW REQUIRED
     departmentId: v.id("departments"),
     totalBudgetAllocated: v.number(),
     obligatedBudget: v.optional(v.number()),
@@ -157,6 +156,12 @@ export const create = mutation({
     const userId = await getAuthUserId(ctx);
     if (userId === null) {
       throw new Error("Not authenticated");
+    }
+
+    // Verify budget item exists
+    const budgetItem = await ctx.db.get(args.budgetItemId);
+    if (!budgetItem) {
+      throw new Error("Budget item not found");
     }
 
     // Verify department exists
@@ -182,16 +187,16 @@ export const create = mutation({
         : 0;
 
     const now = Date.now();
-
     const projectData: any = {
-      projectName: args.particulars, // Map particulars to projectName for database
+      projectName: args.particulars, // Map particulars to projectName
+      budgetItemId: args.budgetItemId, // 🆕 STORE THE LINK
       departmentId: args.departmentId,
       totalBudgetAllocated: args.totalBudgetAllocated,
       totalBudgetUtilized: args.totalBudgetUtilized,
       utilizationRate: utilizationRate,
       projectCompleted: args.projectCompleted,
       projectDelayed: args.projectDelayed,
-      projectsOnTrack: args.projectsOngoing, // Map projectsOngoing to projectsOnTrack for database
+      projectsOnTrack: args.projectsOngoing, // Map projectsOngoing to projectsOnTrack
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -201,7 +206,7 @@ export const create = mutation({
 
     // Only add optional fields if they have values
     if (args.obligatedBudget !== undefined) projectData.obligatedBudget = args.obligatedBudget;
-    if (args.remarks !== undefined) projectData.notes = args.remarks; // Map remarks to notes for database
+    if (args.remarks !== undefined) projectData.notes = args.remarks;
     if (args.year !== undefined) projectData.year = args.year;
     if (args.status !== undefined) projectData.status = args.status;
     if (args.targetDateCompletion !== undefined) projectData.targetDateCompletion = args.targetDateCompletion;
@@ -209,26 +214,30 @@ export const create = mutation({
 
     const projectId = await ctx.db.insert("projects", projectData);
 
+    // 🆕 TRIGGER AUTOMATIC RECALCULATION
+    await recalculateBudgetItemMetrics(ctx, args.budgetItemId, userId);
+
     return projectId;
   },
 });
 
 /**
  * Update an existing project
- * Accepts 'particulars' from frontend, stores as 'projectName' in database
+ * Auto-triggers metrics recalculation on parent budget item(s)
  */
 export const update = mutation({
   args: {
     id: v.id("projects"),
-    particulars: v.string(), // Frontend sends 'particulars'
+    particulars: v.string(),
+    budgetItemId: v.id("budgetItems"), // 🆕 Allows moving project to different budget item
     departmentId: v.id("departments"),
     totalBudgetAllocated: v.number(),
     obligatedBudget: v.optional(v.number()),
     totalBudgetUtilized: v.number(),
     projectCompleted: v.number(),
     projectDelayed: v.number(),
-    projectsOngoing: v.number(), // Frontend sends 'projectsOngoing'
-    remarks: v.optional(v.string()), // Frontend sends 'remarks'
+    projectsOngoing: v.number(),
+    remarks: v.optional(v.string()),
     year: v.optional(v.number()),
     status: v.optional(
       v.union(
@@ -251,19 +260,30 @@ export const update = mutation({
       throw new Error("Project not found");
     }
 
+    // Track if budgetItemId changed
+    const oldBudgetItemId = existing.budgetItemId;
+    const newBudgetItemId = args.budgetItemId;
+    const budgetItemChanged = oldBudgetItemId !== newBudgetItemId;
+
+    // Verify new budget item exists
+    const budgetItem = await ctx.db.get(newBudgetItemId);
+    if (!budgetItem) {
+      throw new Error("Budget item not found");
+    }
+
     // Verify department exists
     const department = await ctx.db.get(args.departmentId);
     if (!department) {
       throw new Error("Department not found");
     }
 
-    // Check if project name is being changed and if it conflicts (using particulars value)
+    // Check if project name is being changed and if it conflicts
     if (args.particulars !== existing.projectName) {
       const conflictingProject = await ctx.db
         .query("projects")
         .withIndex("projectName", (q) => q.eq("projectName", args.particulars))
         .first();
-      
+
       if (conflictingProject && conflictingProject._id !== args.id) {
         throw new Error("Project with this name already exists");
       }
@@ -276,23 +296,23 @@ export const update = mutation({
         : 0;
 
     const now = Date.now();
-
     const updateData: any = {
-      projectName: args.particulars, // Map particulars to projectName for database
+      projectName: args.particulars,
+      budgetItemId: newBudgetItemId,
       departmentId: args.departmentId,
       totalBudgetAllocated: args.totalBudgetAllocated,
       totalBudgetUtilized: args.totalBudgetUtilized,
       utilizationRate: utilizationRate,
       projectCompleted: args.projectCompleted,
       projectDelayed: args.projectDelayed,
-      projectsOnTrack: args.projectsOngoing, // Map projectsOngoing to projectsOnTrack for database
+      projectsOnTrack: args.projectsOngoing,
       updatedBy: userId,
       updatedAt: now,
     };
 
     // Only add optional fields if they have values
     if (args.obligatedBudget !== undefined) updateData.obligatedBudget = args.obligatedBudget;
-    if (args.remarks !== undefined) updateData.notes = args.remarks; // Map remarks to notes for database
+    if (args.remarks !== undefined) updateData.notes = args.remarks;
     if (args.year !== undefined) updateData.year = args.year;
     if (args.status !== undefined) updateData.status = args.status;
     if (args.targetDateCompletion !== undefined) updateData.targetDateCompletion = args.targetDateCompletion;
@@ -300,12 +320,25 @@ export const update = mutation({
 
     await ctx.db.patch(args.id, updateData);
 
+    // 🆕 TRIGGER RECALCULATION
+    if (budgetItemChanged) {
+      // If budget item changed, recalculate BOTH old and new parents
+      if (oldBudgetItemId) {
+         await recalculateBudgetItemMetrics(ctx, oldBudgetItemId, userId);
+      }
+      await recalculateBudgetItemMetrics(ctx, newBudgetItemId, userId);
+    } else {
+      // Otherwise, just recalculate current budget item
+      await recalculateBudgetItemMetrics(ctx, newBudgetItemId, userId);
+    }
+
     return args.id;
   },
 });
 
 /**
  * Delete a project
+ * Auto-triggers metrics recalculation on parent budget item
  */
 export const remove = mutation({
   args: {
@@ -322,7 +355,16 @@ export const remove = mutation({
       throw new Error("Project not found");
     }
 
+    // Save budgetItemId before deletion
+    const budgetItemId = existing.budgetItemId;
+
     await ctx.db.delete(args.id);
+
+    // 🆕 TRIGGER RECALCULATION after deletion
+    if (budgetItemId) {
+      await recalculateBudgetItemMetrics(ctx, budgetItemId, userId);
+    }
+
     return args.id;
   },
 });
@@ -497,19 +539,19 @@ export const getStatistics = query({
     const averageUtilizationRate = totalProjects > 0 
       ? projects.reduce((sum, p) => sum + p.utilizationRate, 0) / totalProjects 
       : 0;
-    
+
     const totalCompleted = projects.reduce((sum, p) => sum + p.projectCompleted, 0);
     const totalDelayed = projects.reduce((sum, p) => sum + p.projectDelayed, 0);
     const totalOngoing = projects.reduce((sum, p) => sum + p.projectsOnTrack, 0);
-    
+
     const averageProjectCompleted = totalProjects > 0 
       ? totalCompleted / totalProjects 
       : 0;
-    
+
     const averageProjectDelayed = totalProjects > 0 
       ? totalDelayed / totalProjects 
       : 0;
-    
+
     const averageProjectsOngoing = totalProjects > 0 
       ? totalOngoing / totalProjects 
       : 0;

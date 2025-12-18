@@ -11,6 +11,7 @@ import { useState } from "react";
 import MainSheet from "./components/MainSheet";
 import AccessDeniedPage from "@/components/AccessDeniedPage";
 
+// Types matched to schema
 interface BudgetItemFromDB {
   _id: Id<"budgetItems">;
   _creationTime: number;
@@ -20,7 +21,7 @@ interface BudgetItemFromDB {
   utilizationRate: number;
   projectCompleted: number;
   projectDelayed: number;
-  projectsOnTrack: number;
+  projectsOnTrack: number; // DB uses OnTrack
   notes?: string;
   year?: number;
   status?: "done" | "pending" | "ongoing";
@@ -85,7 +86,7 @@ export default function BudgetTrackingPage() {
     );
   }
 
-  // Transform database items to UI format - FIXED: Include all fields
+  // Transform database items to UI format
   const budgetData: BudgetItemForUI[] =
     budgetItemsFromDB?.map((item: BudgetItemFromDB) => ({
       id: item._id,
@@ -104,16 +105,14 @@ export default function BudgetTrackingPage() {
     })) ?? [];
 
   const handleAdd = async (
-    item: Omit<BudgetItemForUI, "id" | "utilizationRate">
+    item: Omit<BudgetItemForUI, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOnTrack">
   ) => {
     try {
       await createBudgetItem({
         particulars: item.particular,
         totalBudgetAllocated: item.totalBudgetAllocated,
         totalBudgetUtilized: item.totalBudgetUtilized,
-        projectCompleted: item.projectCompleted,
-        projectDelayed: item.projectDelayed,
-        projectsOnTrack: item.projectsOnTrack,
+        // Metrics are removed here, backend initializes them to 0
         year: item.year,
         status: item.status,
       });
@@ -129,16 +128,14 @@ export default function BudgetTrackingPage() {
 
   const handleEdit = async (
     id: string,
-    item: Omit<BudgetItemForUI, "id" | "utilizationRate">
+    item: Omit<BudgetItemForUI, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOnTrack">
   ) => {
     try {
       await updateBudgetItem({
         id: id as Id<"budgetItems">,
         totalBudgetAllocated: item.totalBudgetAllocated,
         totalBudgetUtilized: item.totalBudgetUtilized,
-        projectCompleted: item.projectCompleted,
-        projectDelayed: item.projectDelayed,
-        projectsOnTrack: item.projectsOnTrack,
+        // Metrics are removed here, backend handles them
         year: item.year,
         status: item.status,
       });
@@ -168,7 +165,6 @@ export default function BudgetTrackingPage() {
   };
 
   const handleExpand = () => {
-    console.log("Expand button clicked");
     setIsExpandModalOpen(true);
   };
 
@@ -260,9 +256,7 @@ export default function BudgetTrackingPage() {
       {/* Full Screen Modal with Overlay */}
       {isExpandModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          {/* Modal Container with Margin */}
           <div className="relative w-full h-full max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] bg-white dark:bg-zinc-900 rounded-xl shadow-2xl overflow-hidden">
-            {/* Close Button */}
             <button
               onClick={() => setIsExpandModalOpen(false)}
               className="absolute top-1.5 right-4 z-50 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors shadow-md"
@@ -271,7 +265,6 @@ export default function BudgetTrackingPage() {
               <X className="w-6 h-6 text-zinc-700 dark:text-zinc-300" />
             </button>
 
-            {/* MainSheet Component */}
             <div className="w-full h-full">
               <MainSheet />
             </div>

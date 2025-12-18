@@ -7,9 +7,10 @@ export interface BudgetItem {
   obligatedBudget?: number;
   totalBudgetUtilized: number;
   utilizationRate: number;
+  // These are now READ-ONLY, calculated from child projects
   projectCompleted: number;
   projectDelayed: number;
-  projectsOnTrack: number;
+  projectsOnTrack: number; // Backend schema uses projectsOnTrack
   year?: number;
   status?: "done" | "pending" | "ongoing";
   isPinned?: boolean;
@@ -52,6 +53,7 @@ export interface BudgetItemFromDB {
 export interface Project {
   id: string;
   particulars: string; // Changed from projectName
+  budgetItemId?: string; // New field linking to parent budget item
   implementingOffice: string; // Department name for display
   totalBudgetAllocated: number;
   obligatedBudget?: number;
@@ -59,8 +61,8 @@ export interface Project {
   utilizationRate: number;
   projectCompleted: number;
   projectDelayed: number;
-  projectsOngoing: number; // Changed from projectsOnTrack
-  remarks?: string; // Changed from notes
+  projectsOngoing: number; // Frontend term for projectsOnTrack
+  remarks?: string; // Frontend term for notes
   year?: number;
   status?: "done" | "pending" | "ongoing";
   projectManagerId?: string;
@@ -68,6 +70,7 @@ export interface Project {
   isPinned?: boolean;
   pinnedAt?: number;
   pinnedBy?: string;
+  targetDateCompletion?: number;
 }
 
 export const BUDGET_PARTICULARS = [

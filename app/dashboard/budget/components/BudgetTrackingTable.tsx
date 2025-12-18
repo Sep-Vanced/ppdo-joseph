@@ -32,8 +32,9 @@ import { toast } from "sonner";
 
 interface BudgetTrackingTableProps {
   budgetItems: BudgetItem[];
-  onAdd?: (item: Omit<BudgetItem, "id" | "utilizationRate">) => void;
-  onEdit?: (id: string, item: Omit<BudgetItem, "id" | "utilizationRate">) => void;
+  // UPDATE THESE TWO LINES:
+  onAdd?: (item: Omit<BudgetItem, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOnTrack">) => void;
+  onEdit?: (id: string, item: Omit<BudgetItem, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOnTrack">) => void;
   onDelete?: (id: string) => void;
   expandButton?: React.ReactNode;
 }
@@ -256,7 +257,7 @@ export function BudgetTrackingTable({
     setContextMenu(null);
   };
 
-  const handleSave = (formData: Omit<BudgetItem, "id" | "utilizationRate">) => {
+  const handleSave = (formData: Omit<BudgetItem, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOnTrack">) => {
     if (selectedItem && onEdit) {
       onEdit(selectedItem.id, formData);
     } else if (onAdd) {

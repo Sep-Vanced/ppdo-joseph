@@ -3,6 +3,8 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+// 🆕 Import aggregation logic for manual trigger
+import { recalculateBudgetItemMetrics, recalculateAllBudgetItems } from "./lib/budgetAggregation";
 
 /**
  * Get all budget items ordered by creation date (newest first)
@@ -82,6 +84,7 @@ export const getByParticulars = query({
 
 /**
  * Create a new budget item
+ * ❌ Removed manual project count inputs. Initialized to 0.
  */
 export const create = mutation({
   args: {
@@ -89,9 +92,7 @@ export const create = mutation({
     totalBudgetAllocated: v.number(),
     obligatedBudget: v.optional(v.number()),
     totalBudgetUtilized: v.number(),
-    projectCompleted: v.number(),
-    projectDelayed: v.number(),
-    projectsOnTrack: v.number(),
+    // ❌ REMOVED MANUAL METRIC INPUTS
     notes: v.optional(v.string()),
     year: v.optional(v.number()),
     status: v.optional(
@@ -125,15 +126,15 @@ export const create = mutation({
         : 0;
 
     const now = Date.now();
-
     const budgetItemData: any = {
       particulars: args.particulars,
       totalBudgetAllocated: args.totalBudgetAllocated,
       totalBudgetUtilized: args.totalBudgetUtilized,
       utilizationRate: utilizationRate,
-      projectCompleted: args.projectCompleted,
-      projectDelayed: args.projectDelayed,
-      projectsOnTrack: args.projectsOnTrack,
+      // 🆕 AUTO-INITIALIZED TO ZERO (will be computed from child projects)
+      projectCompleted: 0,
+      projectDelayed: 0,
+      projectsOnTrack: 0,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -155,6 +156,7 @@ export const create = mutation({
 
 /**
  * Update an existing budget item
+ * ❌ Removed manual project count inputs.
  */
 export const update = mutation({
   args: {
@@ -162,9 +164,7 @@ export const update = mutation({
     totalBudgetAllocated: v.number(),
     obligatedBudget: v.optional(v.number()),
     totalBudgetUtilized: v.number(),
-    projectCompleted: v.number(),
-    projectDelayed: v.number(),
-    projectsOnTrack: v.number(),
+    // ❌ REMOVED MANUAL METRIC INPUTS
     notes: v.optional(v.string()),
     year: v.optional(v.number()),
     status: v.optional(
@@ -193,14 +193,11 @@ export const update = mutation({
         : 0;
 
     const now = Date.now();
-
     const updateData: any = {
       totalBudgetAllocated: args.totalBudgetAllocated,
       totalBudgetUtilized: args.totalBudgetUtilized,
       utilizationRate: utilizationRate,
-      projectCompleted: args.projectCompleted,
-      projectDelayed: args.projectDelayed,
-      projectsOnTrack: args.projectsOnTrack,
+      // ❌ DO NOT UPDATE project counts - they are computed from child projects
       updatedBy: userId,
       updatedAt: now,
     };
@@ -387,6 +384,58 @@ export const getStatistics = query({
       averageProjectDelayed,
       averageProjectsOnTrack,
       totalProjects: budgetItems.length,
+    };
+  },
+});
+
+/**
+ * MANUAL RECALCULATION - Trigger for single budget item
+ * Useful for fixing inconsistencies or testing
+ */
+export const recalculateMetrics = mutation({
+  args: {
+    id: v.id("budgetItems"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const user = await ctx.db.get(userId);
+    if (!user || (user.role !== "super_admin" && user.role !== "admin")) {
+      throw new Error("Unauthorized: Only admins can manually recalculate");
+    }
+
+    const result = await recalculateBudgetItemMetrics(ctx, args.id, userId);
+    
+    return {
+      success: true,
+      message: "Metrics recalculated successfully",
+      ...result,
+    };
+  },
+});
+
+/**
+ * BULK RECALCULATION - Recalculate all budget items
+ * Super admin only - expensive operation
+ */
+export const recalculateAllMetrics = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "super_admin") {
+      throw new Error("Unauthorized: Only super_admin can recalculate all");
+    }
+
+    const results = await recalculateAllBudgetItems(ctx, userId);
+    
+    return {
+      success: true,
+      message: `Recalculated ${results.length} budget items`,
+      results,
     };
   },
 });

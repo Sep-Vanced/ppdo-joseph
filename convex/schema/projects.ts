@@ -16,9 +16,14 @@ export const projectTables = {
     
     /**
      * Implementing Office (Department)
-     * This is the key differentiator from budgetItems
      */
     departmentId: v.id("departments"),
+
+    /**
+     * 🆕 PARENT BUDGET ITEM
+     * Links this project to a specific budget item for aggregation.
+     */
+    budgetItemId: v.id("budgetItems"),
     
     // ============================================================================
     // FINANCIAL DATA (matches budgetItems)
@@ -33,7 +38,7 @@ export const projectTables = {
     // ============================================================================
     projectCompleted: v.number(),
     projectDelayed: v.number(),
-    projectsOnTrack: v.number(),
+    projectsOnTrack: v.number(), // Often referred to as "projectsOngoing" in args
     
     // ============================================================================
     // ADDITIONAL PROJECT FIELDS
@@ -57,19 +62,8 @@ export const projectTables = {
     // ============================================================================
     // PIN FUNCTIONALITY
     // ============================================================================
-    /**
-     * Whether this project is pinned
-     */
     isPinned: v.optional(v.boolean()),
-    
-    /**
-     * Timestamp when pinned
-     */
     pinnedAt: v.optional(v.number()),
-    
-    /**
-     * User who pinned this project
-     */
     pinnedBy: v.optional(v.id("users")),
     
     // ============================================================================
@@ -82,6 +76,10 @@ export const projectTables = {
   })
     .index("projectName", ["projectName"])
     .index("departmentId", ["departmentId"])
+    // 🆕 NEW INDEXES FOR AGGREGATION
+    .index("budgetItemId", ["budgetItemId"]) 
+    .index("budgetItemAndStatus", ["budgetItemId", "status"])
+    // EXISTING INDEXES
     .index("status", ["status"])
     .index("createdBy", ["createdBy"])
     .index("createdAt", ["createdAt"])

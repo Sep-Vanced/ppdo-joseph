@@ -31,7 +31,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Calculator, AlertCircle } from "lucide-react";
+import { Calculator, AlertCircle, Info } from "lucide-react";
 
 interface BudgetItem {
   id: string;
@@ -40,6 +40,7 @@ interface BudgetItem {
   obligatedBudget?: number;
   totalBudgetUtilized: number;
   utilizationRate: number;
+  // Metrics are now readonly
   projectCompleted: number;
   projectDelayed: number;
   projectsOnTrack: number;
@@ -79,6 +80,7 @@ const noWhitespaceString = z
   });
 
 // Define the form schema with Zod
+// ❌ REMOVED manual project counts from schema
 const budgetItemSchema = z
   .object({
     particular: noWhitespaceString,
@@ -89,15 +91,6 @@ const budgetItemSchema = z
       message: "Must be 0 or greater.",
     }).optional().or(z.literal(0)),
     totalBudgetUtilized: z.number().min(0, {
-      message: "Must be 0 or greater.",
-    }),
-    projectCompleted: z.number().int().min(0, {
-      message: "Must be 0 or greater.",
-    }),
-    projectDelayed: z.number().int().min(0, {
-      message: "Must be a whole number (0 or greater).",
-    }),
-    projectsOnTrack: z.number().int().min(0, {
       message: "Must be 0 or greater.",
     }),
     year: z.number().int().min(2000).max(2100).optional().or(z.literal(0)),
@@ -122,7 +115,8 @@ type BudgetItemFormValues = z.infer<typeof budgetItemSchema>;
 
 interface BudgetItemFormProps {
   item?: BudgetItem | null;
-  onSave: (item: Omit<BudgetItem, "id" | "utilizationRate">) => void;
+  // UPDATE THIS LINE to omit the project metric fields
+  onSave: (item: Omit<BudgetItem, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOnTrack">) => void;
   onCancel: () => void;
 }
 
@@ -136,7 +130,6 @@ export function BudgetItemForm({
   // Load saved draft from localStorage (only for new items)
   const getSavedDraft = () => {
     if (item) return null;
-
     try {
       const saved = localStorage.getItem(FORM_STORAGE_KEY);
       if (saved) {
@@ -158,10 +151,8 @@ export function BudgetItemForm({
       totalBudgetAllocated: item?.totalBudgetAllocated || 0,
       obligatedBudget: item?.obligatedBudget || undefined,
       totalBudgetUtilized: item?.totalBudgetUtilized || 0,
-      projectCompleted: item?.projectCompleted || 0,
-      projectDelayed: item?.projectDelayed || 0,
-      projectsOnTrack: item?.projectsOnTrack || 0,
       year: item?.year || undefined,
+      status: item?.status || undefined,
     },
   });
 
@@ -502,116 +493,16 @@ export function BudgetItemForm({
           </div>
         )}
 
-        {/* Project Status Fields */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Project Completed (Count) */}
-          <FormField
-            name="projectCompleted"
-            render={({ field }) => {
-              const value = field.value;
-              const isInvalid = value < 0;
-              
-              return (
-                <FormItem>
-                  <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                    Projects Completed (Count)
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="0"
-                      min="0"
-                      step="1"
-                      type="number"
-                      className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 ${
-                        isInvalid
-                          ? "border-red-500 dark:border-red-500 focus-visible:ring-red-500"
-                          : "border-zinc-300 dark:border-zinc-700"
-                      }`}
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        field.onChange(parseInt(value) || 0);
-                      }}
-                    />
-                  </FormControl>
-                  {isInvalid && (
-                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                      Must be 0 or greater
-                    </p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              );
-            }}
-          />
-
-          {/* Project Delayed (Count) */}
-          <FormField
-            name="projectDelayed"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                  Projects Delayed (Count)
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="0"
-                    min="0"
-                    step="1"
-                    type="number"
-                    className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-                    {...field}
-                    onChange={(e) => {
-                      const value = e.target.value.trim();
-                      field.onChange(parseInt(value) || 0);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Projects On Track (Count) */}
-          <FormField
-            name="projectsOnTrack"
-            render={({ field }) => {
-              const value = field.value;
-              const isInvalid = value < 0;
-              
-              return (
-                <FormItem>
-                  <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                    Projects On Track (Count)
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="0"
-                      min="0"
-                      step="1"
-                      type="number"
-                      className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 ${
-                        isInvalid
-                          ? "border-red-500 dark:border-red-500 focus-visible:ring-red-500"
-                          : "border-zinc-300 dark:border-zinc-700"
-                      }`}
-                      {...field}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        field.onChange(parseInt(value) || 0);
-                      }}
-                    />
-                  </FormControl>
-                  {isInvalid && (
-                    <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                      Must be 0 or greater
-                    </p>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              );
-            }}
-          />
+        {/* ❌ REMOVED PROJECT STATUS FIELDS SECTION */}
+        {/* Added info box explaining auto-calculation */}
+        <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-lg">
+          <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-700 dark:text-blue-300">
+            <p className="font-medium">Automatic Project Metrics</p>
+            <p className="mt-1 opacity-90">
+              Project counts (completed, delayed, ongoing) are now automatically calculated from the individual projects you add to this budget item.
+            </p>
+          </div>
         </div>
 
         {/* Form Actions */}

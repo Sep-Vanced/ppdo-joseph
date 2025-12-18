@@ -21,6 +21,7 @@ import type * as govtProjects from "../govtProjects.js";
 import type * as http from "../http.js";
 import type * as inspections from "../inspections.js";
 import type * as lib_aggregationUtils from "../lib/aggregationUtils.js";
+import type * as lib_budgetAggregation from "../lib/budgetAggregation.js";
 import type * as lib_checkBudgetAccess from "../lib/checkBudgetAccess.js";
 import type * as lib_govtProjectActivityLogger from "../lib/govtProjectActivityLogger.js";
 import type * as lib_nameUtils from "../lib/nameUtils.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   inspections: typeof inspections;
   "lib/aggregationUtils": typeof lib_aggregationUtils;
+  "lib/budgetAggregation": typeof lib_budgetAggregation;
   "lib/checkBudgetAccess": typeof lib_checkBudgetAccess;
   "lib/govtProjectActivityLogger": typeof lib_govtProjectActivityLogger;
   "lib/nameUtils": typeof lib_nameUtils;
