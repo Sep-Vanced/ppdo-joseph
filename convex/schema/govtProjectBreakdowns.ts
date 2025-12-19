@@ -11,6 +11,11 @@ export const govtProjectBreakdownTables = {
     projectName: v.string(), // e.g., "Construction of"
     implementingOffice: v.string(), // e.g., "TPH", "PEO", "CDH"
 
+    // 🆕 PARENT PROJECT (OPTIONAL)
+    // Links this breakdown to a specific project for aggregation.
+    // When linked, this breakdown's status contributes to parent's metrics.
+    projectId: v.optional(v.id("projects")),
+
     // ============================================================================
     // OPTIONAL FIELDS (Everything else from your Excel)
     // ============================================================================
@@ -70,5 +75,8 @@ export const govtProjectBreakdownTables = {
     .index("status", ["status"])
     .index("projectNameAndOffice", ["projectName", "implementingOffice"])
     .index("reportDate", ["reportDate"])
-    .index("municipality", ["municipality"]),
+    .index("municipality", ["municipality"])
+    // 🆕 CRITICAL INDEXES FOR AGGREGATION
+    .index("projectId", ["projectId"])
+    .index("projectIdAndStatus", ["projectId", "status"]),
 };

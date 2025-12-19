@@ -99,25 +99,25 @@ export default function ParticularProjectsPage() {
         return;
       }
 
+      // ⚠️ REMOVED: projectCompleted, projectDelayed, projectsOnTrack
+      // These are now auto-calculated from govtProjectBreakdowns
       await createProject({
         particulars: projectData.particulars,
-        budgetItemId: budgetItem._id, // 🎯 CRITICAL: Link to budget item for auto-aggregation
+        budgetItemId: budgetItem._id,
         implementingOffice: projectData.implementingOffice,
         totalBudgetAllocated: projectData.totalBudgetAllocated,
         obligatedBudget: projectData.obligatedBudget || undefined,
         totalBudgetUtilized: projectData.totalBudgetUtilized || 0,
-        projectCompleted: projectData.projectCompleted || 0,
-        projectDelayed: projectData.projectDelayed || 0,
-        projectsOnTrack: projectData.projectsOngoing || 0, // Map from frontend's projectsOngoing
+        // ⚠️ PROJECT COUNTS REMOVED - Backend initializes to 0
         remarks: projectData.remarks || undefined,
         year: projectData.year || undefined,
-        status: projectData.status || undefined, // ⚠️ This triggers auto-aggregation
+        status: projectData.status || undefined,
         targetDateCompletion: projectData.targetDateCompletion || undefined,
         projectManagerId: projectData.projectManagerId || undefined,
       });
 
       toast.success("Project created successfully!", {
-        description: `"${projectData.particulars}" has been added. Parent budget item metrics updated automatically.`,
+        description: `"${projectData.particulars}" has been added. Project counts will auto-update when you add breakdown records.`,
       });
     } catch (error) {
       console.error("Error creating project:", error);
@@ -144,26 +144,25 @@ export default function ParticularProjectsPage() {
         return;
       }
 
+      // ⚠️ REMOVED: projectCompleted, projectDelayed, projectsOnTrack
       await updateProject({
         id: id as Id<"projects">,
         particulars: projectData.particulars,
-        budgetItemId: budgetItem._id, // Ensure link is maintained
+        budgetItemId: budgetItem._id,
         implementingOffice: projectData.implementingOffice,
         totalBudgetAllocated: projectData.totalBudgetAllocated,
         obligatedBudget: projectData.obligatedBudget || undefined,
         totalBudgetUtilized: projectData.totalBudgetUtilized || 0,
-        projectCompleted: projectData.projectCompleted || 0,
-        projectDelayed: projectData.projectDelayed || 0,
-        projectsOnTrack: projectData.projectsOngoing || 0,
+        // ⚠️ PROJECT COUNTS REMOVED - Backend handles automatically
         remarks: projectData.remarks || undefined,
         year: projectData.year || undefined,
-        status: projectData.status || undefined, // ⚠️ Status change triggers auto-aggregation
+        status: projectData.status || undefined,
         targetDateCompletion: projectData.targetDateCompletion || undefined,
         projectManagerId: projectData.projectManagerId || undefined,
       });
 
       toast.success("Project updated successfully!", {
-        description: `"${projectData.particulars}" has been updated. Parent metrics recalculated.`,
+        description: `"${projectData.particulars}" has been updated.`,
       });
     } catch (error) {
       console.error("Error updating project:", error);

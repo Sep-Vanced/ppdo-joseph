@@ -29,8 +29,8 @@ import { toast } from "sonner";
 interface ProjectsTableProps {
   projects: Project[];
   particularId: string;
-  onAdd?: (project: Omit<Project, "id" | "utilizationRate">) => void;
-  onEdit?: (id: string, project: Omit<Project, "id" | "utilizationRate">) => void;
+  onAdd?: (project: Omit<Project, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOngoing">) => void;
+  onEdit?: (id: string, project: Omit<Project, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOngoing">) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -250,7 +250,7 @@ export function ProjectsTable({
     setContextMenu(null);
   };
 
-  const handleSave = (formData: Omit<Project, "id" | "utilizationRate">) => {
+  const handleSave = (formData: Omit<Project, "id" | "utilizationRate" | "projectCompleted" | "projectDelayed" | "projectsOngoing">) => {
     if (selectedProject && onEdit) {
       onEdit(selectedProject.id, formData);
     } else if (onAdd) {

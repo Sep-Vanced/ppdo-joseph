@@ -19,7 +19,6 @@ export const list = query({
 
     let projects;
 
-    // ✅ Handle the two cases separately to maintain proper types
     if (args.budgetItemId) {
       projects = await ctx.db
         .query("projects")
@@ -66,7 +65,8 @@ export const get = query({
 
 /**
  * Create a new project
- * After creation, automatically recalculates parent budgetItem metrics
+ * ⚠️ UPDATED: Removed projectCompleted, projectDelayed, projectsOnTrack
+ * These are now auto-calculated from govtProjectBreakdowns
  */
 export const create = mutation({
   args: {
@@ -76,9 +76,6 @@ export const create = mutation({
     totalBudgetAllocated: v.number(),
     obligatedBudget: v.optional(v.number()),
     totalBudgetUtilized: v.number(),
-    projectCompleted: v.number(),
-    projectDelayed: v.number(),
-    projectsOnTrack: v.number(),
     remarks: v.optional(v.string()),
     year: v.optional(v.number()),
     status: v.optional(
@@ -112,7 +109,8 @@ export const create = mutation({
         ? (args.totalBudgetUtilized / args.totalBudgetAllocated) * 100
         : 0;
 
-    // Create the project
+    // ⚠️ CHANGED: Initialize project counts to 0
+    // They will be calculated when govtProjectBreakdowns are added
     const projectId = await ctx.db.insert("projects", {
       particulars: args.particulars,
       budgetItemId: args.budgetItemId,
@@ -121,9 +119,9 @@ export const create = mutation({
       obligatedBudget: args.obligatedBudget,
       totalBudgetUtilized: args.totalBudgetUtilized,
       utilizationRate,
-      projectCompleted: args.projectCompleted,
-      projectDelayed: args.projectDelayed,
-      projectsOnTrack: args.projectsOnTrack,
+      projectCompleted: 0, // ⚠️ Auto-calculated
+      projectDelayed: 0, // ⚠️ Auto-calculated
+      projectsOnTrack: 0, // ⚠️ Auto-calculated
       remarks: args.remarks,
       year: args.year,
       status: args.status,
@@ -145,7 +143,7 @@ export const create = mutation({
 
 /**
  * Update an existing project
- * After update, automatically recalculates parent budgetItem metrics
+ * ⚠️ UPDATED: Removed projectCompleted, projectDelayed, projectsOnTrack
  */
 export const update = mutation({
   args: {
@@ -156,9 +154,6 @@ export const update = mutation({
     totalBudgetAllocated: v.number(),
     obligatedBudget: v.optional(v.number()),
     totalBudgetUtilized: v.number(),
-    projectCompleted: v.number(),
-    projectDelayed: v.number(),
-    projectsOnTrack: v.number(),
     remarks: v.optional(v.string()),
     year: v.optional(v.number()),
     status: v.optional(
@@ -204,7 +199,7 @@ export const update = mutation({
     // Store old budgetItemId to recalculate if it changed
     const oldBudgetItemId = existing.budgetItemId;
 
-    // Update the project
+    // ⚠️ CHANGED: Don't update project counts - they're auto-calculated
     await ctx.db.patch(args.id, {
       particulars: args.particulars,
       budgetItemId: args.budgetItemId,
@@ -213,9 +208,7 @@ export const update = mutation({
       obligatedBudget: args.obligatedBudget,
       totalBudgetUtilized: args.totalBudgetUtilized,
       utilizationRate,
-      projectCompleted: args.projectCompleted,
-      projectDelayed: args.projectDelayed,
-      projectsOnTrack: args.projectsOnTrack,
+      // ⚠️ PROJECT COUNTS NOT UPDATED - Maintained by govtProjectBreakdowns
       remarks: args.remarks,
       year: args.year,
       status: args.status,

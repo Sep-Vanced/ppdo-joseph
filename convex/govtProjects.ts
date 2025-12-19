@@ -1,10 +1,12 @@
 // convex/govtProjects.ts
 // Government Project Breakdowns CRUD Operations with Complete Activity Logging
+// 🆕 NOW WITH AUTO-AGGREGATION TO PARENT PROJECTS
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { logGovtProjectActivity, logBulkGovtProjectActivity } from "./lib/govtProjectActivityLogger";
+import { recalculateProjectMetrics } from "./lib/projectAggregation"; // 🆕 IMPORT
 import { Id } from "./_generated/dataModel";
 
 // Reusable status validator to ensure consistency across all mutations
@@ -18,12 +20,13 @@ const statusValidator = v.union(
 
 /**
  * CREATE: Single project breakdown row
- * WITH ACTIVITY LOGGING
+ * WITH ACTIVITY LOGGING + AUTO-AGGREGATION
  */
 export const createProjectBreakdown = mutation({
   args: {
     projectName: v.string(),
     implementingOffice: v.string(),
+    projectId: v.optional(v.id("projects")), // 🆕 LINK TO PARENT PROJECT
     municipality: v.optional(v.string()),
     barangay: v.optional(v.string()),
     district: v.optional(v.string()),
@@ -31,19 +34,18 @@ export const createProjectBreakdown = mutation({
     obligatedBudget: v.optional(v.number()),
     budgetUtilized: v.optional(v.number()),
     balance: v.optional(v.number()),
-    // FIX: Use specific union type to match schema, not generic string
     status: v.optional(statusValidator),
     dateStarted: v.optional(v.number()),
     targetDate: v.optional(v.number()),
     completionDate: v.optional(v.number()),
     remarks: v.optional(v.string()),
-    reason: v.optional(v.string()), // Optional reason for creation
-    projectTitle: v.optional(v.string()), // Added missing field from schema
-    utilizationRate: v.optional(v.number()), // Added missing field from schema
-    projectAccomplishment: v.optional(v.number()), // Added missing field from schema
-    reportDate: v.optional(v.number()), // Added missing field from schema
-    batchId: v.optional(v.string()), // Added missing field from schema
-    fundSource: v.optional(v.string()), // Added missing field from schema
+    reason: v.optional(v.string()),
+    projectTitle: v.optional(v.string()),
+    utilizationRate: v.optional(v.number()),
+    projectAccomplishment: v.optional(v.number()),
+    reportDate: v.optional(v.number()),
+    batchId: v.optional(v.string()),
+    fundSource: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -51,6 +53,14 @@ export const createProjectBreakdown = mutation({
 
     const now = Date.now();
     const { reason, ...breakdownData } = args;
+
+    // 🆕 Verify project exists if provided
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+      if (!project) {
+        throw new Error("Parent project not found");
+      }
+    }
 
     // Create the breakdown
     const breakdownId = await ctx.db.insert("govtProjectBreakdowns", {
@@ -74,19 +84,25 @@ export const createProjectBreakdown = mutation({
       reason: reason,
     });
 
+    // 🎯 TRIGGER: Recalculate parent project metrics if linked
+    if (args.projectId) {
+      await recalculateProjectMetrics(ctx, args.projectId, userId);
+    }
+
     return { breakdownId };
   },
 });
 
 /**
  * UPDATE: Single project breakdown row
- * WITH ACTIVITY LOGGING
+ * WITH ACTIVITY LOGGING + AUTO-AGGREGATION
  */
 export const updateProjectBreakdown = mutation({
   args: {
     breakdownId: v.id("govtProjectBreakdowns"),
     projectName: v.optional(v.string()),
     implementingOffice: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")), // 🆕 CAN CHANGE PARENT
     municipality: v.optional(v.string()),
     barangay: v.optional(v.string()),
     district: v.optional(v.string()),
@@ -94,13 +110,12 @@ export const updateProjectBreakdown = mutation({
     obligatedBudget: v.optional(v.number()),
     budgetUtilized: v.optional(v.number()),
     balance: v.optional(v.number()),
-    // FIX: Use specific union type to match schema
     status: v.optional(statusValidator),
     dateStarted: v.optional(v.number()),
     targetDate: v.optional(v.number()),
     completionDate: v.optional(v.number()),
     remarks: v.optional(v.string()),
-    reason: v.optional(v.string()), // Optional reason for update
+    reason: v.optional(v.string()),
     projectTitle: v.optional(v.string()),
     utilizationRate: v.optional(v.number()),
     projectAccomplishment: v.optional(v.number()),
@@ -118,6 +133,17 @@ export const updateProjectBreakdown = mutation({
     if (!previousBreakdown) {
       throw new Error("Breakdown not found");
     }
+
+    // 🆕 Verify new project exists if provided
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+      if (!project) {
+        throw new Error("Parent project not found");
+      }
+    }
+
+    // Store old projectId to recalculate if it changed
+    const oldProjectId = previousBreakdown.projectId;
 
     // Perform the update
     await ctx.db.patch(breakdownId, {
@@ -140,18 +166,36 @@ export const updateProjectBreakdown = mutation({
       reason: reason,
     });
 
+    // 🎯 TRIGGER: Recalculate metrics for affected projects
+    const projectsToRecalculate = new Set<Id<"projects">>();
+
+    // Add old parent if it exists and is different from new parent
+    if (oldProjectId && oldProjectId !== args.projectId) {
+      projectsToRecalculate.add(oldProjectId);
+    }
+
+    // Add new parent if it exists
+    if (args.projectId) {
+      projectsToRecalculate.add(args.projectId);
+    }
+
+    // Recalculate all affected projects
+    for (const projectId of projectsToRecalculate) {
+      await recalculateProjectMetrics(ctx, projectId, userId);
+    }
+
     return { success: true, breakdownId };
   },
 });
 
 /**
  * DELETE: Single project breakdown row
- * WITH ACTIVITY LOGGING
+ * WITH ACTIVITY LOGGING + AUTO-AGGREGATION
  */
 export const deleteProjectBreakdown = mutation({
   args: {
     breakdownId: v.id("govtProjectBreakdowns"),
-    reason: v.optional(v.string()), // Optional reason for deletion
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -163,10 +207,13 @@ export const deleteProjectBreakdown = mutation({
       throw new Error("Breakdown not found");
     }
 
+    // Store projectId before deletion
+    const projectId = breakdown.projectId;
+
     // Perform the deletion
     await ctx.db.delete(args.breakdownId);
 
-    // LOG ACTIVITY (breakdown ID will reference deleted record)
+    // LOG ACTIVITY
     await logGovtProjectActivity(ctx, userId, {
       action: "deleted",
       breakdownId: args.breakdownId,
@@ -175,19 +222,25 @@ export const deleteProjectBreakdown = mutation({
       reason: args.reason,
     });
 
+    // 🎯 TRIGGER: Recalculate parent project metrics if it was linked
+    if (projectId) {
+      await recalculateProjectMetrics(ctx, projectId, userId);
+    }
+
     return { success: true };
   },
 });
 
 /**
  * BULK CREATE: Multiple project breakdowns (Excel import)
- * WITH ACTIVITY LOGGING
+ * WITH ACTIVITY LOGGING + AUTO-AGGREGATION
  */
 export const bulkCreateBreakdowns = mutation({
   args: {
     breakdowns: v.array(v.object({
       projectName: v.string(),
       implementingOffice: v.string(),
+      projectId: v.optional(v.id("projects")), // 🆕 BULK LINK
       municipality: v.optional(v.string()),
       barangay: v.optional(v.string()),
       district: v.optional(v.string()),
@@ -195,7 +248,6 @@ export const bulkCreateBreakdowns = mutation({
       obligatedBudget: v.optional(v.number()),
       budgetUtilized: v.optional(v.number()),
       balance: v.optional(v.number()),
-      // FIX: Use specific union type to match schema
       status: v.optional(statusValidator),
       dateStarted: v.optional(v.number()),
       targetDate: v.optional(v.number()),
@@ -215,11 +267,13 @@ export const bulkCreateBreakdowns = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const now = Date.now();
-    // FIX: Explicitly type the array with Id<"govtProjectBreakdowns">
     const insertedRecords: Array<{ 
       breakdownId: Id<"govtProjectBreakdowns">; 
       breakdown: any 
     }> = [];
+
+    // 🆕 Track affected projects for recalculation
+    const affectedProjects = new Set<Id<"projects">>();
 
     // Insert all breakdowns
     for (const breakdown of args.breakdowns) {
@@ -236,6 +290,11 @@ export const bulkCreateBreakdowns = mutation({
         breakdownId, 
         breakdown: createdBreakdown 
       });
+
+      // Track project for recalculation
+      if (breakdown.projectId) {
+        affectedProjects.add(breakdown.projectId);
+      }
     }
 
     // LOG BULK ACTIVITY
@@ -254,17 +313,23 @@ export const bulkCreateBreakdowns = mutation({
       }
     );
 
+    // 🎯 TRIGGER: Recalculate all affected projects
+    for (const projectId of affectedProjects) {
+      await recalculateProjectMetrics(ctx, projectId, userId);
+    }
+
     return { 
       count: insertedRecords.length, 
       ids: insertedRecords.map(r => r.breakdownId),
-      batchId 
+      batchId,
+      affectedProjects: affectedProjects.size, // 🆕 REPORT
     };
   },
 });
 
 /**
  * BULK UPDATE: Multiple project breakdowns
- * WITH ACTIVITY LOGGING
+ * WITH ACTIVITY LOGGING + AUTO-AGGREGATION
  */
 export const bulkUpdateBreakdowns = mutation({
   args: {
@@ -272,6 +337,7 @@ export const bulkUpdateBreakdowns = mutation({
       breakdownId: v.id("govtProjectBreakdowns"),
       projectName: v.optional(v.string()),
       implementingOffice: v.optional(v.string()),
+      projectId: v.optional(v.id("projects")), // 🆕 CAN BULK CHANGE PARENT
       municipality: v.optional(v.string()),
       barangay: v.optional(v.string()),
       district: v.optional(v.string()),
@@ -279,7 +345,6 @@ export const bulkUpdateBreakdowns = mutation({
       obligatedBudget: v.optional(v.number()),
       budgetUtilized: v.optional(v.number()),
       balance: v.optional(v.number()),
-      // FIX: Use specific union type to match schema
       status: v.optional(statusValidator),
       dateStarted: v.optional(v.number()),
       targetDate: v.optional(v.number()),
@@ -298,13 +363,15 @@ export const bulkUpdateBreakdowns = mutation({
     if (!userId) throw new Error("Not authenticated");
 
     const now = Date.now();
-    // FIX: Explicitly type the array with Id<"govtProjectBreakdowns">
     const updatedRecords: Array<{
       breakdownId: Id<"govtProjectBreakdowns">;
       breakdown: any;
       previousValues: any;
       newValues: any;
     }> = [];
+
+    // 🆕 Track affected projects for recalculation
+    const affectedProjects = new Set<Id<"projects">>();
 
     // Update all breakdowns
     for (const update of args.updates) {
@@ -315,6 +382,14 @@ export const bulkUpdateBreakdowns = mutation({
       if (!previousBreakdown) {
         console.warn(`Breakdown ${breakdownId} not found, skipping`);
         continue;
+      }
+
+      // Track old and new projects
+      if (previousBreakdown.projectId) {
+        affectedProjects.add(previousBreakdown.projectId);
+      }
+      if (update.projectId) {
+        affectedProjects.add(update.projectId);
       }
 
       // Perform update
@@ -352,17 +427,23 @@ export const bulkUpdateBreakdowns = mutation({
       }
     );
 
+    // 🎯 TRIGGER: Recalculate all affected projects
+    for (const projectId of affectedProjects) {
+      await recalculateProjectMetrics(ctx, projectId, userId);
+    }
+
     return { 
       count: updatedRecords.length, 
       ids: updatedRecords.map(r => r.breakdownId),
-      batchId 
+      batchId,
+      affectedProjects: affectedProjects.size, // 🆕 REPORT
     };
   },
 });
 
 /**
  * BULK DELETE: Multiple project breakdowns
- * WITH ACTIVITY LOGGING
+ * WITH ACTIVITY LOGGING + AUTO-AGGREGATION
  */
 export const bulkDeleteBreakdowns = mutation({
   args: {
@@ -373,11 +454,13 @@ export const bulkDeleteBreakdowns = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // FIX: Explicitly type the array with Id<"govtProjectBreakdowns">
     const deletedRecords: Array<{
       breakdownId: Id<"govtProjectBreakdowns">;
       previousValues: any;
     }> = [];
+
+    // 🆕 Track affected projects for recalculation
+    const affectedProjects = new Set<Id<"projects">>();
 
     // Delete all breakdowns
     for (const breakdownId of args.breakdownIds) {
@@ -386,6 +469,11 @@ export const bulkDeleteBreakdowns = mutation({
       if (!breakdown) {
         console.warn(`Breakdown ${breakdownId} not found, skipping`);
         continue;
+      }
+
+      // Track project for recalculation
+      if (breakdown.projectId) {
+        affectedProjects.add(breakdown.projectId);
       }
 
       // Perform deletion
@@ -412,17 +500,22 @@ export const bulkDeleteBreakdowns = mutation({
       }
     );
 
+    // 🎯 TRIGGER: Recalculate all affected projects
+    for (const projectId of affectedProjects) {
+      await recalculateProjectMetrics(ctx, projectId, userId);
+    }
+
     return { 
       count: deletedRecords.length, 
       ids: deletedRecords.map(r => r.breakdownId),
-      batchId 
+      batchId,
+      affectedProjects: affectedProjects.size, // 🆕 REPORT
     };
   },
 });
 
 /**
  * READ: Get a single project breakdown by ID
- * Optionally log as "viewed" activity
  */
 export const getProjectBreakdown = query({
   args: {
@@ -446,7 +539,8 @@ export const getProjectBreakdowns = query({
     projectName: v.optional(v.string()),
     implementingOffice: v.optional(v.string()),
     municipality: v.optional(v.string()),
-    status: v.optional(v.string()), // Here string is fine as it's just for filtering, not inserting
+    status: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")), // 🆕 FILTER BY PARENT
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -458,6 +552,10 @@ export const getProjectBreakdowns = query({
       .collect();
 
     // Apply filters
+    if (args.projectId) {
+      breakdowns = breakdowns.filter(b => b.projectId === args.projectId);
+    }
+
     if (args.projectName) {
       breakdowns = breakdowns.filter(b => 
         b.projectName.toLowerCase().includes(args.projectName!.toLowerCase())
@@ -490,9 +588,63 @@ export const getProjectBreakdowns = query({
 });
 
 /**
- * LOG VIEW: Manually log a "viewed" activity
- * Use this for tracking when users view specific breakdowns
+ * 🆕 MANUAL RECALCULATION: Recalculate specific project
+ * Use this to manually sync metrics if needed
  */
+export const recalculateProject = mutation({
+  args: {
+    projectId: v.id("projects"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const result = await recalculateProjectMetrics(ctx, args.projectId, userId);
+
+    return {
+      success: true,
+      projectId: args.projectId,
+      ...result,
+    };
+  },
+});
+
+/**
+ * 🆕 MANUAL RECALCULATION: Recalculate ALL projects
+ * Use with caution - expensive operation
+ */
+export const recalculateAllProjects = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "super_admin") {
+      throw new Error("Only super_admin can recalculate all projects");
+    }
+
+    const allProjects = await ctx.db.query("projects").collect();
+    const results = [];
+
+    for (const project of allProjects) {
+      const result = await recalculateProjectMetrics(ctx, project._id, userId);
+      results.push({
+        projectId: project._id,
+        projectName: project.particulars,
+        ...result,
+      });
+    }
+
+    return {
+      success: true,
+      totalProjects: allProjects.length,
+      results,
+    };
+  },
+});
+
+// Keep existing functions (logBreakdownView, logBreakdownExport) unchanged
 export const logBreakdownView = mutation({
   args: {
     breakdownId: v.id("govtProjectBreakdowns"),
@@ -506,7 +658,6 @@ export const logBreakdownView = mutation({
       throw new Error("Breakdown not found");
     }
 
-    // LOG VIEW ACTIVITY
     await logGovtProjectActivity(ctx, userId, {
       action: "viewed",
       breakdownId: args.breakdownId,
@@ -518,24 +669,19 @@ export const logBreakdownView = mutation({
   },
 });
 
-/**
- * LOG EXPORT: Log when breakdowns are exported
- */
 export const logBreakdownExport = mutation({
   args: {
     breakdownIds: v.array(v.id("govtProjectBreakdowns")),
-    exportFormat: v.optional(v.string()), // "excel", "pdf", "csv"
+    exportFormat: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // Get all breakdowns being exported
     const breakdowns = await Promise.all(
       args.breakdownIds.map(id => ctx.db.get(id))
     );
 
-    // Log export activity for each breakdown
     const validBreakdowns = breakdowns.filter(b => b !== null);
     
     for (let i = 0; i < validBreakdowns.length; i++) {
