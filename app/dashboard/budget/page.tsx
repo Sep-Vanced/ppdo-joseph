@@ -10,6 +10,7 @@ import { useState } from "react";
 import MainSheet from "./components/MainSheet";
 import AccessDeniedPage from "@/components/AccessDeniedPage";
 import { ProjectStatus } from "./types";
+import { ActivityLogSheet } from "../components/ActivityLogSheet";
 
 // ✅ FIXED: Updated interface to reflect backend changes
 interface BudgetItemFromDB {
@@ -206,12 +207,23 @@ export default function BudgetTrackingPage() {
     <>
       {/* Page Header */}
       <div className="mb-6 no-print">
-        <h1
-          className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
-          style={{ fontFamily: "var(--font-cinzel), serif" }}
-        >
-          Budget Tracking
-        </h1>
+        <div className="flex items-center justify-between gap-4 mb-1">
+          {/* LEFT: TITLE */}
+          <h1
+            className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100"
+            style={{ fontFamily: "var(--font-cinzel), serif" }}
+          >
+            Budget Tracking
+          </h1>
+
+          {/* RIGHT: GLOBAL ACTIVITY LOG BUTTON */}
+          <ActivityLogSheet
+            type="budget"
+            // No entityId means fetch ALL budget logs
+            title="Global Budget History"
+          />
+        </div>
+
         <p className="text-zinc-600 dark:text-zinc-400">
           Monitor budget allocation, utilization, and project status
         </p>

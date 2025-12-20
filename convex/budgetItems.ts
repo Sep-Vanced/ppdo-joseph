@@ -6,6 +6,7 @@ import {
   recalculateBudgetItemMetrics,
   recalculateAllBudgetItems,
 } from "./lib/budgetAggregation";
+import { logBudgetActivity } from "./lib/budgetActivityLogger";
 
 /**
  * Get all budget items for the current user
@@ -141,20 +142,13 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
+    if (userId === null) throw new Error("Not authenticated");
 
     const now = Date.now();
-    
-    // Calculate utilization rate
-    const utilizationRate =
-      args.totalBudgetAllocated > 0
+    const utilizationRate = args.totalBudgetAllocated > 0
         ? (args.totalBudgetUtilized / args.totalBudgetAllocated) * 100
         : 0;
 
-    // Create budget item with project counts initialized to 0
-    // Status will be auto-calculated when projects are added
     const budgetItemId = await ctx.db.insert("budgetItems", {
       particulars: args.particulars,
       totalBudgetAllocated: args.totalBudgetAllocated,
@@ -164,7 +158,7 @@ export const create = mutation({
       projectCompleted: 0,
       projectDelayed: 0,
       projectsOnTrack: 0,
-      status: "ongoing", // Default initial status
+      status: "ongoing",
       year: args.year,
       notes: args.notes,
       departmentId: args.departmentId,
@@ -172,6 +166,15 @@ export const create = mutation({
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
+    });
+
+    // [NEW] Log Activity
+    const newBudget = await ctx.db.get(budgetItemId);
+    await logBudgetActivity(ctx, userId, {
+      action: "created",
+      budgetItemId,
+      newValues: newBudget,
+      reason: "Initial creation"
     });
 
     return budgetItemId;
@@ -193,27 +196,22 @@ export const update = mutation({
     notes: v.optional(v.string()),
     departmentId: v.optional(v.id("departments")),
     fiscalYear: v.optional(v.number()),
+    reason: v.optional(v.string()), // [NEW]
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
+    if (userId === null) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(args.id);
-    if (!existing) {
-      throw new Error("Budget item not found");
-    }
+    if (!existing) throw new Error("Budget item not found");
 
     const now = Date.now();
-    
-    // Calculate utilization rate
-    const utilizationRate =
-      args.totalBudgetAllocated > 0
+    const utilizationRate = args.totalBudgetAllocated > 0
         ? (args.totalBudgetUtilized / args.totalBudgetAllocated) * 100
         : 0;
 
-    // Update budget item - do NOT update project counts or status
+    const { reason, ...updates } = args;
+
     await ctx.db.patch(args.id, {
       particulars: args.particulars,
       totalBudgetAllocated: args.totalBudgetAllocated,
@@ -228,6 +226,16 @@ export const update = mutation({
       updatedBy: userId,
     });
 
+    // [NEW] Log Activity
+    const updatedBudget = await ctx.db.get(args.id);
+    await logBudgetActivity(ctx, userId, {
+      action: "updated",
+      budgetItemId: args.id,
+      previousValues: existing,
+      newValues: updatedBudget,
+      reason: args.reason
+    });
+
     return args.id;
   },
 });
@@ -236,33 +244,34 @@ export const update = mutation({
  * Delete a budget item
  */
 export const remove = mutation({
-  args: { id: v.id("budgetItems") },
+  args: { 
+    id: v.id("budgetItems"),
+    reason: v.optional(v.string()) // [NEW]
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
+    if (userId === null) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(args.id);
-    if (!existing) {
-      throw new Error("Budget item not found");
-    }
+    if (!existing) throw new Error("Budget item not found");
+    if (existing.createdBy !== userId) throw new Error("Not authorized");
 
-    if (existing.createdBy !== userId) {
-      throw new Error("Not authorized");
-    }
-
-    // Check if there are any projects linked to this budget item
     const projects = await ctx.db
       .query("projects")
       .withIndex("budgetItemId", (q) => q.eq("budgetItemId", args.id))
       .collect();
 
     if (projects.length > 0) {
-      throw new Error(
-        `Cannot delete budget item with ${projects.length} linked project(s). Delete the projects first.`
-      );
+      throw new Error(`Cannot delete budget item with ${projects.length} linked project(s).`);
     }
+
+    // [NEW] Log Activity BEFORE Delete
+    await logBudgetActivity(ctx, userId, {
+      action: "deleted",
+      budgetItemId: args.id,
+      previousValues: existing,
+      reason: args.reason || "Manual deletion"
+    });
 
     await ctx.db.delete(args.id);
     return args.id;

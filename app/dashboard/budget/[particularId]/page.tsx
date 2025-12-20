@@ -11,6 +11,9 @@ import { ProjectsTable } from "./components/ProjectsTable";
 import { useAccentColor } from "../../contexts/AccentColorContext";
 import { toast } from "sonner";
 import { getStatusDisplayText } from "../types";
+import { ActivityLogSheet } from "../../components/ActivityLogSheet";
+import { Button } from "@/components/ui/button";
+import { History } from "lucide-react";
 
 // Helper function to get full name from particular ID
 const getParticularFullName = (particular: string): string => {
@@ -256,12 +259,35 @@ export default function ParticularProjectsPage() {
           Back to Budget Tracking
         </Link>
 
-        <h1
-          className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
-          style={{ fontFamily: "var(--font-cinzel), serif" }}
-        >
-          {particularFullName}
-        </h1>
+        <div className="flex items-center justify-between gap-4 mb-1">
+          {/* LEFT: PARTICULAR FULL NAME */}
+          <h1
+            className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-zinc-100"
+            style={{ fontFamily: "var(--font-cinzel), serif" }}
+          >
+            {particularFullName}
+          </h1>
+
+          {/* RIGHT: ACTIVITY LOG BUTTON */}
+          {budgetItem && (
+            <ActivityLogSheet
+              type="budget"
+              entityId={budgetItem._id}
+              title={`Log: ${budgetItem.particulars}`}
+              trigger={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  <History className="w-4 h-4" />
+                  <span className="hidden sm:inline">Budget Log</span>
+                </Button>
+              }
+            />
+          )}
+        </div>
+
         <p className="text-zinc-600 dark:text-zinc-400">
           Detailed project tracking and budget utilization
           {budgetItem?.status && (
@@ -270,7 +296,11 @@ export default function ParticularProjectsPage() {
             </span>
           )}
         </p>
+
+        
       </div>
+
+      
 
       {/* 🆕 Status Information Card */}
       {budgetItem && (

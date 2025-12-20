@@ -459,10 +459,12 @@ export default function ProjectBreakdownPage() {
           )}
           
           {project && (
-            <ActivityLogSheet 
-              projectName={project.particulars}
-            />
-          )}
+              <ActivityLogSheet 
+                type="breakdown"
+                projectName={project.particulars}
+                implementingOffice={project.implementingOffice}
+              />
+            )}
         </div>
       </div>
 

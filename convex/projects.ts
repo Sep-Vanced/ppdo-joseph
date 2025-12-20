@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { recalculateBudgetItemMetrics } from "./lib/budgetAggregation";
+import { logProjectActivity } from "./lib/projectActivityLogger";
 
 /**
  * Get all projects (optionally filtered by budgetItemId)
@@ -83,27 +84,19 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
+    if (userId === null) throw new Error("Not authenticated");
 
-    // Verify budgetItem exists if provided
+    // [Existing Validation Logic...]
     if (args.budgetItemId) {
       const budgetItem = await ctx.db.get(args.budgetItemId);
-      if (!budgetItem) {
-        throw new Error("Budget item not found");
-      }
+      if (!budgetItem) throw new Error("Budget item not found");
     }
 
     const now = Date.now();
-
-    // Calculate utilization rate
-    const utilizationRate =
-      args.totalBudgetAllocated > 0
+    const utilizationRate = args.totalBudgetAllocated > 0
         ? (args.totalBudgetUtilized / args.totalBudgetAllocated) * 100
         : 0;
 
-    // Create project with initialized metrics
     const projectId = await ctx.db.insert("projects", {
       particulars: args.particulars,
       budgetItemId: args.budgetItemId,
@@ -115,7 +108,7 @@ export const create = mutation({
       projectCompleted: 0,
       projectDelayed: 0,
       projectsOnTrack: 0,
-      status: "ongoing", // Initial default status
+      status: "ongoing",
       remarks: args.remarks,
       year: args.year,
       targetDateCompletion: args.targetDateCompletion,
@@ -125,7 +118,15 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // 🎯 TRIGGER: Recalculate parent budgetItem metrics if linked
+    // [NEW] Log Activity
+    const newProject = await ctx.db.get(projectId);
+    await logProjectActivity(ctx, userId, {
+      action: "created",
+      projectId: projectId,
+      newValues: newProject,
+      reason: "New project creation"
+    });
+
     if (args.budgetItemId) {
       await recalculateBudgetItemMetrics(ctx, args.budgetItemId, userId);
     }
@@ -151,38 +152,30 @@ export const update = mutation({
     year: v.optional(v.number()),
     targetDateCompletion: v.optional(v.number()),
     projectManagerId: v.optional(v.id("users")),
+    reason: v.optional(v.string()), // [NEW] Allow passing a reason
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
+    if (userId === null) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(args.id);
-    if (!existing) {
-      throw new Error("Project not found");
-    }
+    if (!existing) throw new Error("Project not found");
 
-    // Verify new budgetItem exists if provided
+    // [Validation Logic...]
     if (args.budgetItemId) {
       const budgetItem = await ctx.db.get(args.budgetItemId);
-      if (!budgetItem) {
-        throw new Error("Budget item not found");
-      }
+      if (!budgetItem) throw new Error("Budget item not found");
     }
 
     const now = Date.now();
-
-    // Calculate utilization rate
-    const utilizationRate =
-      args.totalBudgetAllocated > 0
+    const utilizationRate = args.totalBudgetAllocated > 0
         ? (args.totalBudgetUtilized / args.totalBudgetAllocated) * 100
         : 0;
-
-    // Store old budgetItemId to recalculate if it changed
+    
     const oldBudgetItemId = existing.budgetItemId;
 
-    // Update project (do NOT update project counts - they're auto-calculated)
+    const { reason, ...updates } = args;
+
     await ctx.db.patch(args.id, {
       particulars: args.particulars,
       budgetItemId: args.budgetItemId,
@@ -199,20 +192,24 @@ export const update = mutation({
       updatedBy: userId,
     });
 
-    // 🎯 TRIGGER: Recalculate metrics for affected budget items
-    const budgetItemsToRecalculate = new Set<string>();
+    // [NEW] Log Activity
+    const updatedProject = await ctx.db.get(args.id);
+    await logProjectActivity(ctx, userId, {
+      action: "updated",
+      projectId: args.id,
+      previousValues: existing,
+      newValues: updatedProject,
+      reason: args.reason
+    });
 
-    // Add old parent if it exists and is different from new parent
+    // Recalculation logic...
+    const budgetItemsToRecalculate = new Set<string>();
     if (oldBudgetItemId && oldBudgetItemId !== args.budgetItemId) {
       budgetItemsToRecalculate.add(oldBudgetItemId);
     }
-
-    // Add new parent if it exists
     if (args.budgetItemId) {
       budgetItemsToRecalculate.add(args.budgetItemId);
     }
-
-    // Recalculate all affected budget items
     for (const budgetItemId of budgetItemsToRecalculate) {
       await recalculateBudgetItemMetrics(ctx, budgetItemId as any, userId);
     }
@@ -226,37 +223,38 @@ export const update = mutation({
  * After deletion, automatically recalculates parent budgetItem metrics
  */
 export const remove = mutation({
-  args: { id: v.id("projects") },
+  args: { 
+    id: v.id("projects"),
+    reason: v.optional(v.string()) // [NEW]
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (userId === null) {
-      throw new Error("Not authenticated");
-    }
+    if (userId === null) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get(args.id);
-    if (!existing) {
-      throw new Error("Project not found");
-    }
+    if (!existing) throw new Error("Project not found");
 
-    // Store budgetItemId before deletion
     const budgetItemId = existing.budgetItemId;
-
-    // Check for related breakdowns
+    
     const breakdowns = await ctx.db
       .query("govtProjectBreakdowns")
       .withIndex("projectId", (q) => q.eq("projectId", args.id))
       .collect();
 
     if (breakdowns.length > 0) {
-      throw new Error(
-        `Cannot delete project with ${breakdowns.length} breakdown(s). Delete the breakdowns first.`
-      );
+      throw new Error(`Cannot delete project with ${breakdowns.length} breakdown(s).`);
     }
 
-    // Delete the project
+    // [NEW] Log Activity BEFORE delete (so we capture the data)
+    await logProjectActivity(ctx, userId, {
+      action: "deleted",
+      projectId: args.id, // ID is kept for reference even if record is gone
+      previousValues: existing,
+      reason: args.reason || "Project deleted"
+    });
+
     await ctx.db.delete(args.id);
 
-    // 🎯 TRIGGER: Recalculate parent budgetItem metrics if it was linked
     if (budgetItemId) {
       await recalculateBudgetItemMetrics(ctx, budgetItemId, userId);
     }

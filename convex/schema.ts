@@ -19,6 +19,8 @@ import { govtProjectBreakdownTables } from "./schema/govtProjectBreakdowns";
 import { aggregationTables } from "./schema/aggregations";
 import { govtProjectBreakdownActivityTables } from "./schema/govtProjectBreakdownActivities"; // <--- ADD THIS
 import { tableSettingsTables } from "./schema/tableSettings";
+import { projectActivityTables } from "./schema/projectActivities";
+import { budgetItemActivityTables } from "./schema/budgetItemActivities";
 
 export default defineSchema({
   ...authTables,
@@ -39,4 +41,6 @@ export default defineSchema({
   ...aggregationTables,
   ...govtProjectBreakdownActivityTables,
   ...tableSettingsTables,
+  ...projectActivityTables,
+  ...budgetItemActivityTables
 });

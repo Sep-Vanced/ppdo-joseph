@@ -1,3 +1,4 @@
+// convex/auth.config.ts
 import { AuthConfig } from "convex/server";
 
 export default {

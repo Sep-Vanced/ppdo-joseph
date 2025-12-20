@@ -21,10 +21,12 @@ import {
   Trash2,
   Filter,
   X,
-  FileText
+  FileText,
+  History
 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
+import { ActivityLogSheet } from "@/app/dashboard/components/ActivityLogSheet";
 
 interface ProjectsTableProps {
   projects: Project[];
@@ -69,7 +71,10 @@ export function ProjectsTable({
   const [yearFilter, setYearFilter] = useState<number[]>([]);
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
-  
+ 
+  const [logSheetOpen, setLogSheetOpen] = useState(false);
+  const [selectedLogProject, setSelectedLogProject] = useState<Project | null>(null);
+
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
 
@@ -156,6 +161,8 @@ export function ProjectsTable({
       });
     }
 
+    
+
     if (statusFilter.length > 0) {
       filtered = filtered.filter(project => project.status && statusFilter.includes(project.status));
     }
@@ -201,6 +208,12 @@ export function ProjectsTable({
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  const handleViewLogs = (project: Project) => {
+      setSelectedLogProject(project);
+      setLogSheetOpen(true);
+      setContextMenu(null);
+    };
 
   const formatPercentage = (value: number): string => `${value.toFixed(1)}%`;
 
@@ -451,9 +464,33 @@ export function ProjectsTable({
           <button onClick={() => handlePin(contextMenu.project)} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 flex items-center gap-3">
             {('isPinned' in contextMenu.project && (contextMenu.project as any).isPinned) ? <><PinOff className="w-4 h-4" />Unpin</> : <><Pin className="w-4 h-4" />Pin to top</>}
           </button>
+          
+          {/* [NEW] View Activity Log Option */}
+          <button 
+            onClick={() => handleViewLogs(contextMenu.project)} 
+            className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 flex items-center gap-3 text-zinc-700 dark:text-zinc-300"
+          >
+            <History className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+            Activity Log
+          </button>
+
           {onEdit && <button onClick={() => handleEdit(contextMenu.project)} className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-100 flex items-center gap-3"><Edit className="w-4 h-4" />Edit</button>}
           {onDelete && <button onClick={() => handleDelete(contextMenu.project)} className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-3"><Trash2 className="w-4 h-4" />Delete</button>}
         </div>
+      )}
+
+      {/* [NEW] Render the Log Sheet when triggered */}
+      {selectedLogProject && (
+        <ActivityLogSheet
+          type="project"
+          entityId={selectedLogProject.id}
+          title={`Project History: ${selectedLogProject.particulars}`}
+          isOpen={logSheetOpen}
+          onOpenChange={(open) => {
+            setLogSheetOpen(open);
+            if (!open) setSelectedLogProject(null);
+          }}
+        />
       )}
 
       {/* 🔧 FIX: Pass budgetItemId to ProjectForm */}

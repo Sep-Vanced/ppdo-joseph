@@ -61,7 +61,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       {/* <AIAssistant /> */}
 
       {/* Global Onboarding Modal */}
-      <OnboardingModal />
+      {/* <OnboardingModal /> */}
     </div>
   );
 }
