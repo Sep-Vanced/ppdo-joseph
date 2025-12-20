@@ -80,6 +80,11 @@ export const projectTables = {
     pinnedAt: v.optional(v.number()),
     pinnedBy: v.optional(v.id("users")),
     
+    // [NEW] Trash System Fields
+    isDeleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.id("users")),
+    
     // ============================================================================
     // SYSTEM FIELDS
     // ============================================================================
@@ -92,6 +97,7 @@ export const projectTables = {
     .index("implementingOffice", ["implementingOffice"])
     .index("departmentId", ["departmentId"])
     // 🆕 CRITICAL INDEXES FOR AGGREGATION
+    .index("isDeleted", ["isDeleted"])
     .index("budgetItemId", ["budgetItemId"]) 
     .index("budgetItemAndStatus", ["budgetItemId", "status"])
     // EXISTING INDEXES

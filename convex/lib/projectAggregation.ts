@@ -6,28 +6,25 @@ import { recalculateBudgetItemMetrics } from "./budgetAggregation";
 type MutationCtx = GenericMutationCtx<DataModel>;
 
 /**
- * Calculate and update project metrics based on child govtProjectBreakdown STATUSES
- * ✅ FIXED: Now properly triggers parent budget item recalculation
+ * Calculate and update project metrics based on child breakdowns
+ * ✅ UPDATED: Now excludes soft-deleted (trashed) breakdowns
  */
 export async function recalculateProjectMetrics(
   ctx: MutationCtx,
   projectId: Id<"projects">,
   userId: Id<"users">
 ) {
-  // Get all breakdowns for this project
+  // Get all ACTIVE breakdowns (not in trash)
   const breakdowns = await ctx.db
     .query("govtProjectBreakdowns")
     .withIndex("projectId", (q) => q.eq("projectId", projectId))
+    .filter((q) => q.neq(q.field("isDeleted"), true)) // [NEW] Exclude trashed
     .collect();
 
-  // Get the project to find its parent budget item
   const project = await ctx.db.get(projectId);
-  if (!project) {
-    throw new Error(`Project ${projectId} not found`);
-  }
+  if (!project) throw new Error(`Project ${projectId} not found`);
 
   if (breakdowns.length === 0) {
-    // No breakdowns - set all counts to 0 and default status to "ongoing"
     await ctx.db.patch(projectId, {
       projectCompleted: 0,
       projectDelayed: 0,
@@ -37,7 +34,6 @@ export async function recalculateProjectMetrics(
       updatedBy: userId,
     });
 
-    // 🎯 CRITICAL FIX: Trigger parent budget item recalculation
     if (project.budgetItemId) {
       await recalculateBudgetItemMetrics(ctx, project.budgetItemId, userId);
     }
@@ -51,38 +47,25 @@ export async function recalculateProjectMetrics(
     };
   }
 
-  // Count breakdowns based on their STATUS field
+  // Count breakdowns
   const aggregated = breakdowns.reduce(
     (acc, breakdown) => {
       const status = breakdown.status;
-      
-      if (status === "completed") {
-        acc.completed++;
-      } else if (status === "delayed") {
-        acc.delayed++;
-      } else if (status === "ongoing") {
-        acc.onTrack++;
-      }
-      
+      if (status === "completed") acc.completed++;
+      else if (status === "delayed") acc.delayed++;
+      else if (status === "ongoing") acc.onTrack++;
       return acc;
     },
     { completed: 0, delayed: 0, onTrack: 0 }
   );
 
-  // 🆕 AUTO-CALCULATE STATUS based on breakdown counts
+  // Auto-calculate status
   let status: "completed" | "delayed" | "ongoing";
-  
-  if (aggregated.onTrack > 0) {
-    status = "ongoing";
-  } else if (aggregated.delayed > 0) {
-    status = "delayed";
-  } else if (aggregated.completed > 0) {
-    status = "completed";
-  } else {
-    status = "ongoing";
-  }
+  if (aggregated.onTrack > 0) status = "ongoing";
+  else if (aggregated.delayed > 0) status = "delayed";
+  else if (aggregated.completed > 0) status = "completed";
+  else status = "ongoing";
 
-  // Update project with aggregated totals and auto-calculated status
   await ctx.db.patch(projectId, {
     projectCompleted: aggregated.completed,
     projectDelayed: aggregated.delayed,
@@ -92,7 +75,6 @@ export async function recalculateProjectMetrics(
     updatedBy: userId,
   });
 
-  // 🎯 CRITICAL FIX: Trigger parent budget item recalculation
   if (project.budgetItemId) {
     await recalculateBudgetItemMetrics(ctx, project.budgetItemId, userId);
   }

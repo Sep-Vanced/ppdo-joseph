@@ -1,3 +1,5 @@
+// convex/schema/projectActivities.ts
+
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
 

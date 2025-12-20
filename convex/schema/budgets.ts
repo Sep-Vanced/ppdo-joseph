@@ -65,6 +65,11 @@ export const budgetTables = {
      */
     fiscalYear: v.optional(v.number()),
     
+    // [NEW] Trash System Fields
+    isDeleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.id("users")),
+    
     createdBy: v.id("users"),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -82,7 +87,8 @@ export const budgetTables = {
     .index("status", ["status"])
     .index("yearAndStatus", ["year", "status"])
     .index("isPinned", ["isPinned"])
-    .index("pinnedAt", ["pinnedAt"]),
+    .index("pinnedAt", ["pinnedAt"])
+    .index("isDeleted", ["isDeleted"]),
 
   /**
    * Obligations.

@@ -22,74 +22,66 @@ const statusValidator = v.union(
  */
 export const createProjectBreakdown = mutation({
   args: {
-    projectName: v.string(),
-    implementingOffice: v.string(),
-    projectId: v.optional(v.id("projects")),
-    municipality: v.optional(v.string()),
-    barangay: v.optional(v.string()),
-    district: v.optional(v.string()),
-    allocatedBudget: v.optional(v.number()),
-    obligatedBudget: v.optional(v.number()),
-    budgetUtilized: v.optional(v.number()),
-    balance: v.optional(v.number()),
-    status: v.optional(statusValidator),
-    dateStarted: v.optional(v.number()),
-    targetDate: v.optional(v.number()),
-    completionDate: v.optional(v.number()),
-    remarks: v.optional(v.string()),
-    reason: v.optional(v.string()),
-    projectTitle: v.optional(v.string()),
-    utilizationRate: v.optional(v.number()),
-    projectAccomplishment: v.optional(v.number()),
-    reportDate: v.optional(v.number()),
-    batchId: v.optional(v.string()),
-    fundSource: v.optional(v.string()),
+      projectName: v.string(),
+      implementingOffice: v.string(),
+      projectId: v.optional(v.id("projects")),
+      municipality: v.optional(v.string()),
+      barangay: v.optional(v.string()),
+      district: v.optional(v.string()),
+      allocatedBudget: v.optional(v.number()),
+      obligatedBudget: v.optional(v.number()),
+      budgetUtilized: v.optional(v.number()),
+      balance: v.optional(v.number()),
+      status: v.optional(statusValidator),
+      dateStarted: v.optional(v.number()),
+      targetDate: v.optional(v.number()),
+      completionDate: v.optional(v.number()),
+      remarks: v.optional(v.string()),
+      reason: v.optional(v.string()),
+      projectTitle: v.optional(v.string()),
+      utilizationRate: v.optional(v.number()),
+      projectAccomplishment: v.optional(v.number()),
+      reportDate: v.optional(v.number()),
+      batchId: v.optional(v.string()),
+      fundSource: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Not authenticated");
 
-    const now = Date.now();
-    const { reason, ...breakdownData } = args;
+        const now = Date.now();
+        const { reason, ...breakdownData } = args;
 
-    // Verify project exists if provided
-    if (args.projectId) {
-      const project = await ctx.db.get(args.projectId);
-      if (!project) {
-        throw new Error("Parent project not found");
-      }
-    }
+        if (args.projectId) {
+            const project = await ctx.db.get(args.projectId);
+            if (!project) throw new Error("Parent project not found");
+        }
 
-    // Create the breakdown
-    const breakdownId = await ctx.db.insert("govtProjectBreakdowns", {
-      ...breakdownData,
-      createdBy: userId,
-      createdAt: now,
-      updatedAt: now,
-      updatedBy: userId,
-    });
+        const breakdownId = await ctx.db.insert("govtProjectBreakdowns", {
+            ...breakdownData,
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+            updatedBy: userId,
+            isDeleted: false, // Init
+        });
 
-    // Get the created breakdown for logging
-    const createdBreakdown = await ctx.db.get(breakdownId);
+        const createdBreakdown = await ctx.db.get(breakdownId);
+        await logGovtProjectActivity(ctx, userId, {
+            action: "created",
+            breakdownId: breakdownId,
+            breakdown: createdBreakdown,
+            newValues: createdBreakdown,
+            source: "web_ui",
+            reason: reason,
+        });
 
-    // LOG ACTIVITY
-    await logGovtProjectActivity(ctx, userId, {
-      action: "created",
-      breakdownId: breakdownId,
-      breakdown: createdBreakdown,
-      newValues: createdBreakdown,
-      source: "web_ui",
-      reason: reason,
-    });
+        if (args.projectId) {
+            await recalculateProjectMetrics(ctx, args.projectId, userId);
+        }
 
-    // 🎯 CRITICAL FIX: Recalculate parent project metrics if linked
-    // This will automatically trigger budget item recalculation
-    if (args.projectId) {
-      await recalculateProjectMetrics(ctx, args.projectId, userId);
-    }
-
-    return { breakdownId };
-  },
+        return { breakdownId };
+    },
 });
 
 /**
@@ -189,8 +181,7 @@ export const updateProjectBreakdown = mutation({
 });
 
 /**
- * DELETE: Single project breakdown row
- * ✅ FIXED: Now triggers complete aggregation chain
+ * HARD DELETE: Permanent Removal
  */
 export const deleteProjectBreakdown = mutation({
   args: {
@@ -201,19 +192,14 @@ export const deleteProjectBreakdown = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // GET VALUES BEFORE DELETION
     const breakdown = await ctx.db.get(args.breakdownId);
-    if (!breakdown) {
-      throw new Error("Breakdown not found");
-    }
+    if (!breakdown) throw new Error("Breakdown not found");
 
-    // Store projectId before deletion
     const projectId = breakdown.projectId;
 
-    // Perform the deletion
     await ctx.db.delete(args.breakdownId);
 
-    // LOG ACTIVITY
+    // Log
     await logGovtProjectActivity(ctx, userId, {
       action: "deleted",
       breakdownId: args.breakdownId,
@@ -222,8 +208,6 @@ export const deleteProjectBreakdown = mutation({
       reason: args.reason,
     });
 
-    // 🎯 CRITICAL FIX: Recalculate parent project metrics if it was linked
-    // This will automatically trigger budget item recalculation
     if (projectId) {
       await recalculateProjectMetrics(ctx, projectId, userId);
     }
@@ -594,13 +578,16 @@ export const getProjectBreakdown = query({
 /**
  * READ: Get all project breakdowns with optional filtering
  */
+/**
+ * Get ACTIVE breakdowns (Hidden Trash)
+ */
 export const getProjectBreakdowns = query({
   args: {
     projectName: v.optional(v.string()),
     implementingOffice: v.optional(v.string()),
     municipality: v.optional(v.string()),
     status: v.optional(v.string()),
-    projectId: v.optional(v.id("projects")), // 🆕 FILTER BY PARENT
+    projectId: v.optional(v.id("projects")),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -609,6 +596,7 @@ export const getProjectBreakdowns = query({
 
     let breakdowns = await ctx.db
       .query("govtProjectBreakdowns")
+      .filter((q) => q.neq(q.field("isDeleted"), true)) // [IMPORTANT]
       .collect();
 
     // Apply filters
@@ -644,6 +632,92 @@ export const getProjectBreakdowns = query({
     }
 
     return breakdowns;
+  },
+});
+
+/**
+ * Get TRASHED breakdowns only
+ */
+export const getTrash = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    return await ctx.db
+      .query("govtProjectBreakdowns")
+      .withIndex("isDeleted", (q) => q.eq("isDeleted", true))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * Soft Delete: Move Breakdown to Trash
+ */
+export const moveToTrash = mutation({
+  args: {
+    breakdownId: v.id("govtProjectBreakdowns"),
+    reason: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const breakdown = await ctx.db.get(args.breakdownId);
+    if (!breakdown) throw new Error("Breakdown not found");
+
+    // 1. Trash It
+    await ctx.db.patch(args.breakdownId, {
+      isDeleted: true,
+      deletedAt: Date.now(),
+      deletedBy: userId
+    });
+
+    // 2. Recalculate Parent Project Metrics
+    if (breakdown.projectId) {
+      await recalculateProjectMetrics(ctx, breakdown.projectId, userId);
+    }
+
+    // Log
+    await logGovtProjectActivity(ctx, userId, {
+      action: "updated", // Logged as update because record still exists
+      breakdownId: args.breakdownId,
+      previousValues: breakdown,
+      newValues: { ...breakdown, isDeleted: true },
+      source: "web_ui",
+      reason: args.reason || "Moved to trash",
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Restore Breakdown from Trash
+ */
+export const restoreFromTrash = mutation({
+  args: { breakdownId: v.id("govtProjectBreakdowns") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const breakdown = await ctx.db.get(args.breakdownId);
+    if (!breakdown) throw new Error("Breakdown not found");
+
+    // 1. Restore It
+    await ctx.db.patch(args.breakdownId, {
+      isDeleted: false,
+      deletedAt: undefined,
+      deletedBy: undefined
+    });
+
+    // 2. Recalculate Parent Project Metrics
+    if (breakdown.projectId) {
+      await recalculateProjectMetrics(ctx, breakdown.projectId, userId);
+    }
+
+    return { success: true };
   },
 });
 

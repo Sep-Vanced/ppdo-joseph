@@ -59,6 +59,11 @@ export const govtProjectBreakdownTables = {
     batchId: v.optional(v.string()),
     fundSource: v.optional(v.string()),
 
+    // [NEW] Trash System Fields
+    isDeleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.id("users")),
+
     // ============================================================================
     // SYSTEM FIELDS
     // ============================================================================
@@ -74,6 +79,7 @@ export const govtProjectBreakdownTables = {
     .index("reportDate", ["reportDate"])
     .index("municipality", ["municipality"])
     // 🆕 CRITICAL INDEXES FOR AGGREGATION
+    .index("isDeleted", ["isDeleted"])
     .index("projectId", ["projectId"])
     .index("projectIdAndStatus", ["projectId", "status"]),
 };

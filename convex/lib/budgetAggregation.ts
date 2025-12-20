@@ -6,21 +6,21 @@ type MutationCtx = GenericMutationCtx<DataModel>;
 
 /**
  * Calculate and update budgetItem metrics based on child project STATUSES
- * ✅ FIXED: Now uses the auto-calculated status from projects
+ * ✅ UPDATED: Now excludes soft-deleted (trashed) projects
  */
 export async function recalculateBudgetItemMetrics(
   ctx: MutationCtx,
   budgetItemId: Id<"budgetItems">,
   userId: Id<"users">
 ) {
-  // Get all projects for this budget item
+  // Get all ACTIVE projects (not in trash)
   const projects = await ctx.db
     .query("projects")
     .withIndex("budgetItemId", (q) => q.eq("budgetItemId", budgetItemId))
+    .filter((q) => q.neq(q.field("isDeleted"), true)) // [NEW] Exclude trashed
     .collect();
 
   if (projects.length === 0) {
-    // No projects - set all counts to 0 and default status to "ongoing"
     await ctx.db.patch(budgetItemId, {
       projectCompleted: 0,
       projectDelayed: 0,
@@ -39,38 +39,26 @@ export async function recalculateBudgetItemMetrics(
     };
   }
 
-  // Count projects based on their AUTO-CALCULATED STATUS field
+  // Count projects
   const aggregated = projects.reduce(
     (acc, project) => {
       const status = project.status;
-      
-      if (status === "completed") {
-        acc.completed++;
-      } else if (status === "delayed") {
-        acc.delayed++;
-      } else if (status === "ongoing") {
-        acc.onTrack++;
-      }
-      
+      if (status === "completed") acc.completed++;
+      else if (status === "delayed") acc.delayed++;
+      else if (status === "ongoing") acc.onTrack++;
       return acc;
     },
     { completed: 0, delayed: 0, onTrack: 0 }
   );
 
-  // 🆕 AUTO-CALCULATE BUDGET ITEM STATUS based on project statuses
+  // Auto-calculate status
   let status: "completed" | "delayed" | "ongoing";
-  
-  if (aggregated.onTrack > 0) {
-    status = "ongoing"; // 🎯 Priority 1: Any ongoing project
-  } else if (aggregated.delayed > 0) {
-    status = "delayed"; // 🎯 Priority 2: Any delayed project (no ongoing)
-  } else if (aggregated.completed > 0) {
-    status = "completed"; // 🎯 Priority 3: Only completed projects
-  } else {
-    status = "ongoing"; // 🎯 Default fallback
-  }
+  if (aggregated.onTrack > 0) status = "ongoing";
+  else if (aggregated.delayed > 0) status = "delayed";
+  else if (aggregated.completed > 0) status = "completed";
+  else status = "ongoing";
 
-  // Update budget item with aggregated totals and auto-calculated status
+  // Update budget item
   await ctx.db.patch(budgetItemId, {
     projectCompleted: aggregated.completed,
     projectDelayed: aggregated.delayed,
