@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import { ThemeToggle } from "../dashboard/components/ThemeToggle";
 
 interface LocationData {
   city: string;
@@ -343,21 +344,7 @@ export default function ForgotPassword() {
         <div className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-8 md:p-12 lg:p-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm relative">
           {/* Theme Toggle - Top Right */}
           <div className="absolute top-4 right-4 md:top-6 md:right-6">
-            <button className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors">
-              <svg
-                className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                />
-              </svg>
-            </button>
+            <ThemeToggle />
           </div>
 
           <div className="w-full max-w-md">

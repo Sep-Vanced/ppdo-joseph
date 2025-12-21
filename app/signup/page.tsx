@@ -9,11 +9,98 @@ import Image from "next/image";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ThemeToggle } from "../dashboard/components/ThemeToggle";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
+
+// Error type classification for better UX
+type ErrorType = 'account_exists' | 'weak_password' | 'invalid_email' | 'network_error' | 'unknown';
+
+interface UserFriendlyError {
+  type: ErrorType;
+  title: string;
+  message: string;
+  action?: string;
+}
+
+// Centralized error mapping for signup
+const parseSignUpError = (error: any): UserFriendlyError => {
+  // Collect all possible error messages
+  const messages = [
+    error?.message,
+    error?.cause?.message,
+    typeof error === "string" ? error : null,
+    JSON.stringify(error),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  // 🔴 DUPLICATE / ACCOUNT EXISTS
+  if (
+    messages.includes("already exists") ||
+    messages.includes("account") && messages.includes("exists") ||
+    messages.includes("duplicate") ||
+    messages.includes("email") && messages.includes("exists")
+  ) {
+    return {
+      type: "account_exists",
+      title: "Email Already Registered",
+      message: "An account with this email already exists.",
+      action: "Please sign in instead or use a different email address.",
+    };
+  }
+
+  // 🟡 WEAK PASSWORD
+  if (
+    messages.includes("password") &&
+    (messages.includes("weak") || messages.includes("8"))
+  ) {
+    return {
+      type: "weak_password",
+      title: "Weak Password",
+      message: "Your password must be at least 8 characters long.",
+      action: "Choose a stronger password.",
+    };
+  }
+
+  // 🔵 INVALID EMAIL
+  if (messages.includes("invalid email")) {
+    return {
+      type: "invalid_email",
+      title: "Invalid Email Address",
+      message: "Please enter a valid email address.",
+      action: "Check the email format and try again.",
+    };
+  }
+
+  // 🌐 NETWORK
+  if (
+    messages.includes("network") ||
+    messages.includes("fetch") ||
+    messages.includes("timeout")
+  ) {
+    return {
+      type: "network_error",
+      title: "Connection Error",
+      message: "We couldn’t reach the server.",
+      action: "Check your internet connection and try again.",
+    };
+  }
+
+  // ⚠️ FALLBACK
+  return {
+    type: "unknown",
+    title: "Sign Up Failed",
+    message: "Something went wrong while creating your account.",
+    action: "Please try again in a moment.",
+  };
+};
+
 
 export default function SignUp() {
   const { signIn } = useAuthActions();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFriendlyError | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const updateLastLogin = useMutation(api.myFunctions.updateLastLogin);
 
@@ -169,21 +256,6 @@ export default function SignUp() {
         <div className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-8 md:p-12 lg:p-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm relative">
           {/* Theme Toggle - Top Right */}
           <div className="absolute top-4 right-4 md:top-6 md:right-6">
-            {/* <button className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors">
-              <svg
-                className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                />
-              </svg>
-            </button> */}
             <ThemeToggle />
           </div>
 
@@ -203,13 +275,30 @@ export default function SignUp() {
               </p>
             </div>
 
-            {/* Error Message */}
+            {/* Modern Error Message */}
             {error && (
               <div
                 role="alert"
-                className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
+                className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/40 dark:to-red-900/20 border border-red-200/60 dark:border-red-800/40 shadow-sm backdrop-blur-sm"
               >
-                Error: {error}
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex-1 pt-0.5">
+                    <h3 className="text-sm font-semibold text-red-900 dark:text-red-200 mb-1">
+                      {error.title}
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300/90 leading-relaxed">
+                      {error.message}
+                    </p>
+                    {error.action && (
+                      <p className="text-xs text-red-600 dark:text-red-400/80 mt-2 leading-relaxed">
+                        {error.action}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -221,6 +310,31 @@ export default function SignUp() {
                 setError(null);
 
                 const formData = new FormData(e.target as HTMLFormElement);
+                const email = formData.get("email") as string;
+                const password = formData.get("password") as string;
+
+                // Client-side validation
+                if (!email || !password) {
+                  setError({
+                    type: 'invalid_email',
+                    title: 'Missing Information',
+                    message: 'Please enter both email and password.',
+                    action: 'Fill in all fields and try again.'
+                  });
+                  setLoading(false);
+                  return;
+                }
+
+                if (password.length < 8) {
+                  setError({
+                    type: 'weak_password',
+                    title: 'Weak Password',
+                    message: 'Password must be at least 8 characters.',
+                    action: 'Choose a stronger password.'
+                  });
+                  setLoading(false);
+                  return;
+                }
                 
                 try {
                   // Sign up with Convex Auth
@@ -234,7 +348,9 @@ export default function SignUp() {
                   router.push("/dashboard");
                 } catch (error: any) {
                   console.error("Sign up error:", error);
-                  setError(error.message || "Failed to create account. Please try again.");
+
+                  const friendlyError = parseSignUpError(error);
+                  setError(friendlyError);
                   setLoading(false);
                 }
               }}
@@ -268,17 +384,32 @@ export default function SignUp() {
                 >
                   Password
                 </label>
-                <input
-                  id="password"
-                  type="password"
-                  name="password"
-                  required
-                  autoComplete="new-password"
-                  disabled={loading}
-                  minLength={8}
-                  className="w-full px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-slate-700 focus:border-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    required
+                    autoComplete="new-password"
+                    disabled={loading}
+                    minLength={8}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-slate-700 focus:border-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
                 <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                   Password must be at least 8 characters
                 </p>
@@ -288,7 +419,7 @@ export default function SignUp() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-medium transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden shadow-md hover:shadow-lg"
+                className="cursor-pointer w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white font-medium transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden shadow-md hover:shadow-lg"
               >
                 <span className="relative z-10">
                   {loading ? "Creating Account..." : "Sign Up"}
@@ -300,9 +431,9 @@ export default function SignUp() {
             <div className="mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-700">
               <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
                 Already have an account?{" "}
-                <span className="text-zinc-400 dark:text-zinc-500">
-                  Contact administrator
-                </span>
+                <a href="/signin" className="text-[#15803d] hover:text-[#16a34a] dark:text-[#16a34a] dark:hover:text-[#22c55e] transition-colors font-medium">
+                  Sign in now
+                </a>
               </p>
             </div>
           </div>

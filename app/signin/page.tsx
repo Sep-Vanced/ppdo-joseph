@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ThemeToggle } from "../dashboard/components/ThemeToggle";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 
 interface LocationData {
   city: string;
@@ -19,13 +20,163 @@ interface LocationData {
   };
 }
 
+// Error type classification for better UX
+type ErrorType = 'invalid_credentials' | 'account_locked' | 'account_suspended' | 'account_inactive' | 'network_error' | 'unknown';
+
+interface UserFriendlyError {
+  type: ErrorType;
+  title: string;
+  message: string;
+  action?: string;
+}
+
+// Centralized error mapping for consistent UX
+const parseAuthError = (error: any): UserFriendlyError => {
+  const errorMessage = error?.message?.toLowerCase() || '';
+  const errorData = error?.data || {};
+  
+  // Wrong password - Convex throws "InvalidSecret" when password is incorrect
+  if (
+    errorMessage.includes('invalidsecret') ||
+    errorMessage.includes('invalid secret')
+  ) {
+    return {
+      type: 'invalid_credentials',
+      title: 'Incorrect Password',
+      message: 'The password you entered is wrong.',
+      action: 'Try again or click "Forgot password?" below.'
+    };
+  }
+  
+  // Account not found - Convex throws "InvalidAccountId" when email doesn't exist
+  if (
+    errorMessage.includes('invalidaccountid') ||
+    errorMessage.includes('invalid account')
+  ) {
+    return {
+      type: 'invalid_credentials',
+      title: 'Account Not Found',
+      message: 'No account exists with this email address.',
+      action: 'Check your email or contact support.'
+    };
+  }
+  
+  // Generic invalid credentials fallback
+  if (
+    errorMessage.includes('invalid credentials') ||
+    errorMessage.includes('account not found') ||
+    errorMessage.includes('incorrect password') ||
+    errorMessage.includes('invalid password') ||
+    errorMessage.includes('wrong password')
+  ) {
+    return {
+      type: 'invalid_credentials',
+      title: 'Sign In Failed',
+      message: 'Your email or password is incorrect.',
+      action: 'Try again or click "Forgot password?" below.'
+    };
+  }
+  
+  // Account locked
+  if (
+    errorMessage.includes('locked') ||
+    errorMessage.includes('account is locked') ||
+    errorData.isLocked
+  ) {
+    return {
+      type: 'account_locked',
+      title: 'Account Locked',
+      message: 'Your account is locked for security.',
+      action: 'Contact support to unlock it.'
+    };
+  }
+  
+  // Account suspended
+  if (
+    errorMessage.includes('suspended') ||
+    errorMessage.includes('account suspended') ||
+    errorData.status === 'suspended'
+  ) {
+    return {
+      type: 'account_suspended',
+      title: 'Account Suspended',
+      message: 'Your account has been suspended.',
+      action: 'Contact support for help.'
+    };
+  }
+  
+  // Account inactive
+  if (
+    errorMessage.includes('inactive') ||
+    errorMessage.includes('account inactive') ||
+    errorMessage.includes('account is inactive') ||
+    errorData.status === 'inactive'
+  ) {
+    return {
+      type: 'account_inactive',
+      title: 'Account Inactive',
+      message: 'Your account is not active.',
+      action: 'Contact support to activate it.'
+    };
+  }
+  
+  // Network or connection errors
+  if (
+    errorMessage.includes('network') ||
+    errorMessage.includes('fetch') ||
+    errorMessage.includes('connection') ||
+    errorMessage.includes('timeout') ||
+    error?.name === 'NetworkError' ||
+    error?.name === 'TypeError'
+  ) {
+    return {
+      type: 'network_error',
+      title: 'Connection Error',
+      message: 'Cannot connect to the server.',
+      action: 'Check your internet and try again.'
+    };
+  }
+  
+  // Password requirements error (shouldn't happen on sign in, but just in case)
+  if (errorMessage.includes('invalid password') && errorMessage.includes('8 characters')) {
+    return {
+      type: 'invalid_credentials',
+      title: 'Invalid Password',
+      message: 'Password must be at least 8 characters.',
+      action: 'Enter a longer password.'
+    };
+  }
+  
+  // Missing required fields
+  if (
+    errorMessage.includes('missing') ||
+    errorMessage.includes('required')
+  ) {
+    return {
+      type: 'invalid_credentials',
+      title: 'Missing Information',
+      message: 'Please enter both email and password.',
+      action: 'Fill in all fields and try again.'
+    };
+  }
+  
+  // Generic fallback
+  return {
+    type: 'unknown',
+    title: 'Sign In Error',
+    message: 'Something went wrong, please try again.',
+    action: 'Contact support if this keeps happening.'
+  };
+};
+
 export default function SignIn() {
   const { signIn } = useAuthActions();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<UserFriendlyError | null>(null);
   const [loading, setLoading] = useState(false);
   const [clientIP, setClientIP] = useState<string>("Unknown");
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   
   // Mutations for login trail tracking
@@ -297,22 +448,6 @@ export default function SignIn() {
         <div className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-8 md:p-12 lg:p-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm relative">
           {/* Theme Toggle - Top Right */}
           <div className="absolute top-4 right-4 md:top-6 md:right-6">
-            {/* <button className="w-10 h-10 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors">
-              <svg
-                className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                />
-              </svg>
-            </button> */}
-
             <ThemeToggle />
           </div>
 
@@ -327,13 +462,30 @@ export default function SignIn() {
               </p>
             </div>
 
-            {/* Error Message */}
+            {/* Modern Error Message */}
             {error && (
               <div
                 role="alert"
-                className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300"
+                className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-950/40 dark:to-red-900/20 border border-red-200/60 dark:border-red-800/40 shadow-sm backdrop-blur-sm"
               >
-                Error: {error}
+                <div className="flex gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex-1 pt-0.5">
+                    <h3 className="text-sm font-semibold text-red-900 dark:text-red-200 mb-1">
+                      {error.title}
+                    </h3>
+                    <p className="text-sm text-red-700 dark:text-red-300/90 leading-relaxed">
+                      {error.message}
+                    </p>
+                    {error.action && (
+                      <p className="text-xs text-red-600 dark:text-red-400/80 mt-2 leading-relaxed">
+                        {error.action}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -345,8 +497,21 @@ export default function SignIn() {
                 setError(null);
                 const formData = new FormData(e.target as HTMLFormElement);
                 const email = formData.get("email") as string;
+                const password = formData.get("password") as string;
                 const ipAddress = clientIP;
                 const userAgent = getUserAgent();
+                
+                // Client-side validation
+                if (!email || !password) {
+                  setError({
+                    type: 'invalid_credentials',
+                    title: 'Missing Information',
+                    message: 'Please provide both email and password to sign in.',
+                    action: 'Fill in all required fields and try again.'
+                  });
+                  setLoading(false);
+                  return;
+                }
                 
                 // Prepare location string
                 let locationString = "Unknown";
@@ -376,14 +541,20 @@ export default function SignIn() {
                     });
                   } catch (trackingError) {
                     // Continue to dashboard anyway, don't block user entry for logging failure
+                    console.error('Failed to record successful login:', trackingError);
                   }
                   
                   // Redirect to dashboard
                   router.push("/dashboard");
                 } catch (error: any) {
-                  // Capture the error message or default to a generic auth failure message
-                  let failureReasonForLog = error.message || "Authentication Failed (Invalid email or password)";
-
+                  console.error('Sign in error:', error);
+                  
+                  // Parse error into user-friendly format
+                  const friendlyError = parseAuthError(error);
+                  
+                  // Determine failure reason for logging
+                  let failureReasonForLog = error.message || "Authentication Failed";
+                  
                   // Record failed login attempt
                   try {
                     await recordFailedLogin({
@@ -401,22 +572,11 @@ export default function SignIn() {
                     });
                   } catch (trackingError) {
                     // Don't block error display if tracking fails
+                    console.error('Failed to record failed login:', trackingError);
                   }
                   
-                  // Determine error message for the user
-                  let errorMessage = "Failed to sign in. Please check your credentials.";
-                  // Check for specific error types
-                  if (error.message?.includes("locked")) {
-                    errorMessage = "Your account has been locked due to multiple failed login attempts. Please contact support.";
-                  } else if (error.message?.includes("suspended")) {
-                    errorMessage = "Your account has been suspended. Please contact support.";
-                  } else if (error.message?.includes("inactive")) {
-                    errorMessage = "Your account is inactive. Please contact support.";
-                  } else if (error.message) {
-                    errorMessage = error.message;
-                  }
-                  
-                  setError(errorMessage);
+                  // Display user-friendly error
+                  setError(friendlyError);
                   setLoading(false);
                 }
               }}
@@ -450,17 +610,32 @@ export default function SignIn() {
                 >
                   Password
                 </label>
-                <input
-                  id="password"
-                  type="password"
-                  name="password"
-                  required
-                  autoComplete="current-password"
-                  disabled={loading}
-                  minLength={8}
-                  className="w-full px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:border-[#15803d] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  placeholder="••••••••"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    required
+                    autoComplete="current-password"
+                    disabled={loading}
+                    minLength={8}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:border-[#15803d] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="cursor-pointer absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors focus:outline-none"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Forgot Password Link */}
@@ -477,7 +652,7 @@ export default function SignIn() {
               <button
                 type="submit"
                 disabled={loading || locationLoading}
-                className="w-full py-3 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-medium transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                className="cursor-pointer w-full py-3 rounded-xl bg-[#15803d] hover:bg-[#16a34a] text-white font-medium transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
               >
                 <span className="relative z-10">
                   {loading ? "Authenticating..." : locationLoading ? "Detecting location..." : "Sign In"}
