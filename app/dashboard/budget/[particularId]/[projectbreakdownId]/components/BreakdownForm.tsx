@@ -1,3 +1,4 @@
+// app/dashboard/budget/[particularId]/[projectbreakdownId]/components/BreakdownForm.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,7 +31,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ChevronDown, MapPin, FileText } from "lucide-react";
-import { ImplementingAgencyCombobox } from "../../components/ImplementingAgencyCombobox";
+import { ImplementingOfficeSelector } from "./ImplementingOfficeSelector";
 
 // Define the form schema with Zod - matching new backend schema with STRICT 3 statuses
 const breakdownSchema = z.object({
@@ -207,7 +208,7 @@ export function BreakdownForm({
               )}
             />
 
-            {/* Implementing Office - NOW WITH COMBOBOX */}
+            {/* Implementing Office - NOW WITH NEW SELECTOR */}
             <FormField
               name="implementingOffice"
               render={({ field }) => (
@@ -216,7 +217,7 @@ export function BreakdownForm({
                     Implementing Office <span className="text-red-500">*</span>
                   </FormLabel>
                   <FormControl>
-                    <ImplementingAgencyCombobox
+                    <ImplementingOfficeSelector
                       value={field.value}
                       onChange={field.onChange}
                       disabled={false}
@@ -224,7 +225,7 @@ export function BreakdownForm({
                     />
                   </FormControl>
                   <FormDescription className="text-zinc-500 dark:text-zinc-400 text-xs">
-                    Agency/department responsible for implementation
+                    Select department or implementing agency responsible
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -389,26 +390,26 @@ export function BreakdownForm({
 
             {/* Fund Source */}
             <div className="hidden">
-            <FormField
-              name="fundSource"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                    Fund Source
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="e.g., 20% Development Fund"
-                      className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-                      {...field}
-                      value={field.value || ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+              <FormField
+                name="fundSource"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-zinc-700 dark:text-zinc-300">
+                      Fund Source
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., 20% Development Fund"
+                        className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </div>
 
@@ -631,7 +632,7 @@ export function BreakdownForm({
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                  )}
+                    )}
                   />
 
                   {/* Municipality */}
@@ -652,7 +653,7 @@ export function BreakdownForm({
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                  )}
+                    )}
                   />
 
                   {/* Barangay */}
@@ -673,7 +674,7 @@ export function BreakdownForm({
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                  )}
+                    )}
                   />
                 </div>
               </div>

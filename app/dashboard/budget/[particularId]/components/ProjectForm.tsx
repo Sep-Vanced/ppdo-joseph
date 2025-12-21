@@ -1,3 +1,4 @@
+// app/dashboard/budget/[particularId]/components/ProjectForm.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -42,7 +43,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ProjectParticularCombobox } from "./ProjectParticularCombobox";
-import { ImplementingAgencyCombobox } from "./ImplementingAgencyCombobox";
+import { ImplementingOfficeSelector } from "./ImplementingOfficeSelector";
 
 const FORM_STORAGE_KEY = "project_form_draft";
 
@@ -318,7 +319,7 @@ export function ProjectForm({ project, budgetItemId, onSave, onCancel }: Project
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Particulars - NOW WITH COMBOBOX */}
+          {/* Particulars - WITH COMBOBOX */}
           <FormField
             name="particulars"
             render={({ field }) => (
@@ -344,7 +345,7 @@ export function ProjectForm({ project, budgetItemId, onSave, onCancel }: Project
             )}
           />
 
-          {/* Implementing Office - NOW WITH COMBOBOX */}
+          {/* Implementing Office - NOW WITH NEW SELECTOR */}
           <FormField
             name="implementingOffice"
             render={({ field }) => (
@@ -353,7 +354,7 @@ export function ProjectForm({ project, budgetItemId, onSave, onCancel }: Project
                   Implementing Office
                 </FormLabel>
                 <FormControl>
-                  <ImplementingAgencyCombobox
+                  <ImplementingOfficeSelector
                     value={field.value}
                     onChange={field.onChange}
                     disabled={false}
@@ -361,7 +362,7 @@ export function ProjectForm({ project, budgetItemId, onSave, onCancel }: Project
                   />
                 </FormControl>
                 <FormDescription className="text-zinc-500 dark:text-zinc-400">
-                  Select the agency/department responsible for this project
+                  Select department or implementing agency responsible for this project
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -680,7 +681,7 @@ export function ProjectForm({ project, budgetItemId, onSave, onCancel }: Project
               </Accordion>
             </div>
           )}
-
+          
           {/* Info box explaining auto-calculation */}
           <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-lg">
             <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
