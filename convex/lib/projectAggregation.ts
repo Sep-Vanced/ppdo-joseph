@@ -7,7 +7,10 @@ type MutationCtx = GenericMutationCtx<DataModel>;
 
 /**
  * Calculate and update project metrics based on child breakdowns
- * ✅ UPDATED: Now excludes soft-deleted (trashed) breakdowns
+ * ✅ UPDATED: 
+ * 1. Aggregates `obligatedBudget` and `totalBudgetUtilized` from breakdowns.
+ * 2. Recalculates `utilizationRate` based on Project's allocated vs Breakdown's utilized.
+ * 3. Excludes soft-deleted (trashed) breakdowns.
  */
 export async function recalculateProjectMetrics(
   ctx: MutationCtx,
@@ -18,70 +21,71 @@ export async function recalculateProjectMetrics(
   const breakdowns = await ctx.db
     .query("govtProjectBreakdowns")
     .withIndex("projectId", (q) => q.eq("projectId", projectId))
-    .filter((q) => q.neq(q.field("isDeleted"), true)) // [NEW] Exclude trashed
+    .filter((q) => q.neq(q.field("isDeleted"), true))
     .collect();
 
   const project = await ctx.db.get(projectId);
   if (!project) throw new Error(`Project ${projectId} not found`);
 
-  if (breakdowns.length === 0) {
-    await ctx.db.patch(projectId, {
-      projectCompleted: 0,
-      projectDelayed: 0,
-      projectsOnTrack: 0,
-      status: "ongoing",
-      updatedAt: Date.now(),
-      updatedBy: userId,
-    });
+  // Initialize Aggregators
+  let totalObligated = 0;
+  let totalUtilized = 0;
+  const statusCounts = { completed: 0, delayed: 0, onTrack: 0 };
 
-    if (project.budgetItemId) {
-      await recalculateBudgetItemMetrics(ctx, project.budgetItemId, userId);
-    }
+  // Aggregate Data from Breakdowns
+  for (const breakdown of breakdowns) {
+    // Sum Financials
+    totalObligated += (breakdown.obligatedBudget || 0);
+    totalUtilized += (breakdown.budgetUtilized || 0);
 
-    return {
-      breakdownsCount: 0,
-      completed: 0,
-      delayed: 0,
-      onTrack: 0,
-      status: "ongoing",
-    };
+    // Count Statuses
+    const status = breakdown.status;
+    if (status === "completed") statusCounts.completed++;
+    else if (status === "delayed") statusCounts.delayed++;
+    else if (status === "ongoing") statusCounts.onTrack++;
   }
 
-  // Count breakdowns
-  const aggregated = breakdowns.reduce(
-    (acc, breakdown) => {
-      const status = breakdown.status;
-      if (status === "completed") acc.completed++;
-      else if (status === "delayed") acc.delayed++;
-      else if (status === "ongoing") acc.onTrack++;
-      return acc;
-    },
-    { completed: 0, delayed: 0, onTrack: 0 }
-  );
+  // Calculate Dynamic Utilization Rate
+  // Formula: (Total Utilized from Breakdowns / Project Allocated) * 100
+  const utilizationRate = project.totalBudgetAllocated > 0
+    ? (totalUtilized / project.totalBudgetAllocated) * 100
+    : 0;
 
-  // Auto-calculate status
+  // Auto-calculate Project Status
   let status: "completed" | "delayed" | "ongoing";
-  if (aggregated.onTrack > 0) status = "ongoing";
-  else if (aggregated.delayed > 0) status = "delayed";
-  else if (aggregated.completed > 0) status = "completed";
-  else status = "ongoing";
+  if (breakdowns.length === 0) {
+    status = "ongoing"; // Default if no breakdowns
+  } else {
+    if (statusCounts.onTrack > 0) status = "ongoing";
+    else if (statusCounts.delayed > 0) status = "delayed";
+    else if (statusCounts.completed > 0) status = "completed";
+    else status = "ongoing";
+  }
 
+  // Update Project with Aggregated Values
   await ctx.db.patch(projectId, {
-    projectCompleted: aggregated.completed,
-    projectDelayed: aggregated.delayed,
-    projectsOnTrack: aggregated.onTrack,
+    obligatedBudget: totalObligated,
+    totalBudgetUtilized: totalUtilized,
+    utilizationRate: utilizationRate,
+    projectCompleted: statusCounts.completed,
+    projectDelayed: statusCounts.delayed,
+    projectsOnTrack: statusCounts.onTrack,
     status: status,
     updatedAt: Date.now(),
     updatedBy: userId,
   });
 
+  // Cascade Calculation to Parent Budget Item
   if (project.budgetItemId) {
     await recalculateBudgetItemMetrics(ctx, project.budgetItemId, userId);
   }
 
   return {
     breakdownsCount: breakdowns.length,
-    ...aggregated,
+    ...statusCounts,
+    totalObligated,
+    totalUtilized,
+    utilizationRate,
     status,
   };
 }
@@ -120,7 +124,7 @@ export async function recalculateAllProjects(
 }
 
 /**
- * 🆕 BULK RECALCULATION: Recalculate all projects for a specific budget item
+ * Bulk Recalculation: Recalculate all projects for a specific budget item
  */
 export async function recalculateProjectsForBudgetItem(
   ctx: MutationCtx,
@@ -131,7 +135,6 @@ export async function recalculateProjectsForBudgetItem(
     .query("projects")
     .withIndex("budgetItemId", (q) => q.eq("budgetItemId", budgetItemId))
     .collect();
-
   const projectIds = projects.map((p) => p._id);
   
   return await recalculateMultipleProjects(ctx, projectIds, userId);

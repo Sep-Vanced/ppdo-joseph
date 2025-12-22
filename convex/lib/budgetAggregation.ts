@@ -5,8 +5,11 @@ import { DataModel, Id } from "../_generated/dataModel";
 type MutationCtx = GenericMutationCtx<DataModel>;
 
 /**
- * Calculate and update budgetItem metrics based on child project STATUSES
- * ✅ UPDATED: Now excludes soft-deleted (trashed) projects
+ * Calculate and update budgetItem metrics based on child projects
+ * ✅ UPDATED: 
+ * 1. Aggregates `obligatedBudget` and `totalBudgetUtilized` from projects.
+ * 2. Recalculates `utilizationRate` based on Budget's allocated vs Projects' utilized.
+ * 3. Excludes soft-deleted (trashed) projects.
  */
 export async function recalculateBudgetItemMetrics(
   ctx: MutationCtx,
@@ -17,52 +20,55 @@ export async function recalculateBudgetItemMetrics(
   const projects = await ctx.db
     .query("projects")
     .withIndex("budgetItemId", (q) => q.eq("budgetItemId", budgetItemId))
-    .filter((q) => q.neq(q.field("isDeleted"), true)) // [NEW] Exclude trashed
+    .filter((q) => q.neq(q.field("isDeleted"), true))
     .collect();
 
-  if (projects.length === 0) {
-    await ctx.db.patch(budgetItemId, {
-      projectCompleted: 0,
-      projectDelayed: 0,
-      projectsOnTrack: 0,
-      status: "ongoing",
-      updatedAt: Date.now(),
-      updatedBy: userId,
-    });
+  const budgetItem = await ctx.db.get(budgetItemId);
+  if (!budgetItem) throw new Error("Budget item not found");
 
-    return {
-      projectsCount: 0,
-      completed: 0,
-      delayed: 0,
-      onTrack: 0,
-      status: "ongoing",
-    };
+  // Initialize Aggregators
+  let totalObligated = 0;
+  let totalUtilized = 0;
+  const statusCounts = { completed: 0, delayed: 0, onTrack: 0 };
+
+  // Aggregate Data from Projects
+  for (const project of projects) {
+    // Sum Financials (aggregating the already aggregated values from projects)
+    totalObligated += (project.obligatedBudget || 0);
+    totalUtilized += (project.totalBudgetUtilized || 0);
+
+    // Count Statuses
+    const status = project.status;
+    if (status === "completed") statusCounts.completed++;
+    else if (status === "delayed") statusCounts.delayed++;
+    else if (status === "ongoing") statusCounts.onTrack++;
   }
 
-  // Count projects
-  const aggregated = projects.reduce(
-    (acc, project) => {
-      const status = project.status;
-      if (status === "completed") acc.completed++;
-      else if (status === "delayed") acc.delayed++;
-      else if (status === "ongoing") acc.onTrack++;
-      return acc;
-    },
-    { completed: 0, delayed: 0, onTrack: 0 }
-  );
+  // Calculate Dynamic Utilization Rate
+  // Formula: (Total Utilized from Projects / Budget Allocated) * 100
+  const utilizationRate = budgetItem.totalBudgetAllocated > 0
+    ? (totalUtilized / budgetItem.totalBudgetAllocated) * 100
+    : 0;
 
-  // Auto-calculate status
+  // Auto-calculate Status
   let status: "completed" | "delayed" | "ongoing";
-  if (aggregated.onTrack > 0) status = "ongoing";
-  else if (aggregated.delayed > 0) status = "delayed";
-  else if (aggregated.completed > 0) status = "completed";
-  else status = "ongoing";
+  if (projects.length === 0) {
+    status = "ongoing"; // Default
+  } else {
+    if (statusCounts.onTrack > 0) status = "ongoing";
+    else if (statusCounts.delayed > 0) status = "delayed";
+    else if (statusCounts.completed > 0) status = "completed";
+    else status = "ongoing";
+  }
 
-  // Update budget item
+  // Update Budget Item with Aggregated Values
   await ctx.db.patch(budgetItemId, {
-    projectCompleted: aggregated.completed,
-    projectDelayed: aggregated.delayed,
-    projectsOnTrack: aggregated.onTrack,
+    obligatedBudget: totalObligated,
+    totalBudgetUtilized: totalUtilized,
+    utilizationRate: utilizationRate,
+    projectCompleted: statusCounts.completed,
+    projectDelayed: statusCounts.delayed,
+    projectsOnTrack: statusCounts.onTrack,
     status: status,
     updatedAt: Date.now(),
     updatedBy: userId,
@@ -70,7 +76,10 @@ export async function recalculateBudgetItemMetrics(
 
   return {
     projectsCount: projects.length,
-    ...aggregated,
+    ...statusCounts,
+    totalObligated,
+    totalUtilized,
+    utilizationRate,
     status,
   };
 }

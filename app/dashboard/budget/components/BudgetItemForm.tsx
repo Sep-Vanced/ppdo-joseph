@@ -18,13 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Calculator, AlertCircle, Info, PlusCircle, MinusCircle } from "lucide-react";
+import { Calculator, AlertCircle, Info, PlusCircle, MinusCircle, AlertTriangle } from "lucide-react";
 import { BudgetParticularCombobox } from "./BudgetParticularCombobox";
 
 interface BudgetItem {
@@ -83,10 +77,9 @@ export function BudgetItemForm({
 }: BudgetItemFormProps) {
   const { accentColorValue } = useAccentColor();
   
-  // ✅ State to toggle utilized budget visibility
-  const [showUtilizedInput, setShowUtilizedInput] = useState(
-    !!item && item.totalBudgetUtilized > 0
-  );
+  // ✅ State to toggle manual input for obligated and utilized budget
+  // Defaults to false unless there is existing data when editing, but logic implies we want to hide it to encourage auto-calc
+  const [showManualInput, setShowManualInput] = useState(false);
 
   const getSavedDraft = () => {
     if (item) return null;
@@ -102,7 +95,7 @@ export function BudgetItemForm({
   };
 
   const savedDraft = getSavedDraft();
-
+  
   const form = useForm<BudgetItemFormValues>({
     resolver: zodResolver(budgetItemSchema),
     defaultValues: savedDraft || {
@@ -132,7 +125,7 @@ export function BudgetItemForm({
   const totalBudgetAllocated = form.watch("totalBudgetAllocated");
   const obligatedBudget = form.watch("obligatedBudget");
   const totalBudgetUtilized = form.watch("totalBudgetUtilized") || 0;
-
+  
   const utilizationRate =
     totalBudgetAllocated > 0
       ? (totalBudgetUtilized / totalBudgetAllocated) * 100
@@ -141,13 +134,6 @@ export function BudgetItemForm({
   // ✅ Inline Checks (Visual Only)
   const isBudgetExceeded = totalBudgetUtilized > totalBudgetAllocated;
   const isObligatedExceeded = obligatedBudget && obligatedBudget > totalBudgetAllocated;
-
-  const getUtilizationColor = () => {
-    if (utilizationRate > 100) return "text-red-600 dark:text-red-400 font-bold";
-    if (utilizationRate >= 80) return "text-red-600 dark:text-red-400";
-    if (utilizationRate >= 60) return "text-orange-600 dark:text-orange-400";
-    return "text-green-600 dark:text-green-400";
-  };
 
   function onSubmit(values: BudgetItemFormValues) {
     const cleanedValues = {
@@ -232,125 +218,131 @@ export function BudgetItemForm({
           )}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            name="totalBudgetAllocated"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                  Total Budget Allocated
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="0"
-                    min="0"
-                    step="0.01"
-                    className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
-                    {...field}
-                    onChange={(e) => {
-                      const value = e.target.value.trim();
-                      field.onChange(parseFloat(value) || 0);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <FormField
+          name="totalBudgetAllocated"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-zinc-700 dark:text-zinc-300">
+                Total Budget Allocated
+              </FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className="bg-white dark:bg-zinc-900 border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
+                  {...field}
+                  onChange={(e) => {
+                    const value = e.target.value.trim();
+                    field.onChange(parseFloat(value) || 0);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <FormField
-            name="obligatedBudget"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                  Obligated Budget <span className="text-xs text-zinc-500">(Optional)</span>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="0"
-                    min="0"
-                    step="0.01"
-                    className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 ${
-                      isObligatedExceeded
-                        ? "border-red-500 dark:border-red-500 focus-visible:ring-red-500"
-                        : "border-zinc-300 dark:border-zinc-700"
-                    }`}
-                    {...field}
-                    value={field.value || ""}
-                    onChange={(e) => {
-                      const value = e.target.value.trim();
-                      field.onChange(value ? parseFloat(value) : undefined);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* ✅ Toggle for Utilized Budget */}
-        <div className="space-y-3">
+        {/* ✅ Section: Manual Input Toggle with Warning */}
+        <div className="pt-2 space-y-3">
           <div className="flex items-center justify-between">
              <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                    const nextState = !showUtilizedInput;
-                    setShowUtilizedInput(nextState);
+                    const nextState = !showManualInput;
+                    setShowManualInput(nextState);
                     if (!nextState) {
+                        form.setValue("obligatedBudget", 0);
                         form.setValue("totalBudgetUtilized", 0);
                     }
                 }}
-                className="text-xs flex items-center gap-2"
+                className="text-xs flex items-center gap-2 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/20 text-orange-700 dark:text-orange-400"
              >
-                {showUtilizedInput ? (
-                    <><MinusCircle className="w-3 h-3" /> Hide Utilized Budget</>
+                {showManualInput ? (
+                    <><MinusCircle className="w-3 h-3" /> Hide Manual Inputs</>
                 ) : (
-                    <><PlusCircle className="w-3 h-3" /> Input Utilized Budget</>
+                    <><PlusCircle className="w-3 h-3" /> Input Utilized and Obligated Budget</>
                 )}
              </Button>
           </div>
 
-          {showUtilizedInput && (
-            <FormField
-                name="totalBudgetUtilized"
-                render={({ field }) => (
-                <FormItem className="animate-in fade-in slide-in-from-top-2 duration-200">
-                    <FormLabel className="text-zinc-700 dark:text-zinc-300">
-                    Total Budget Utilized
-                    </FormLabel>
-                    <FormControl>
-                    <Input
-                        placeholder="0"
-                        min="0"
-                        step="0.01"
-                        className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 ${
-                        isBudgetExceeded
-                            ? "border-red-500 dark:border-red-500 focus-visible:ring-red-500"
-                            : "border-zinc-300 dark:border-zinc-700"
-                        }`}
-                        {...field}
-                        onChange={(e) => {
-                        const value = e.target.value.trim();
-                        field.onChange(parseFloat(value) || 0);
-                        }}
+          {showManualInput && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 border border-orange-200 dark:border-orange-800/50 rounded-lg p-4 bg-orange-50/50 dark:bg-orange-950/10">
+                {/* ⚠️ Development Warning */}
+                <div className="flex items-start gap-2 text-xs text-orange-700 dark:text-orange-300 mb-4">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>
+                        This feature is under development, the entire system auto calculation may be not true, better use the project breakdown page to input the specific obligated and utilized budget.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                        name="obligatedBudget"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-zinc-700 dark:text-zinc-300">
+                            Obligated Budget <span className="text-xs text-zinc-500">(Optional)</span>
+                            </FormLabel>
+                            <FormControl>
+                            <Input
+                                placeholder="0"
+                                min="0"
+                                step="0.01"
+                                className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 ${
+                                isObligatedExceeded
+                                    ? "border-red-500 dark:border-red-500 focus-visible:ring-red-500"
+                                    : "border-zinc-300 dark:border-zinc-700"
+                                }`}
+                                {...field}
+                                value={field.value || ""}
+                                onChange={(e) => {
+                                const value = e.target.value.trim();
+                                field.onChange(value ? parseFloat(value) : undefined);
+                                }}
+                            />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
                     />
-                    </FormControl>
-                    {isBudgetExceeded && (
-                        <p className="text-xs text-red-500 mt-1">
-                            Warning: Utilized budget exceeds allocated budget.
-                        </p>
-                    )}
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
+
+                    <FormField
+                        name="totalBudgetUtilized"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-zinc-700 dark:text-zinc-300">
+                            Total Budget Utilized
+                            </FormLabel>
+                            <FormControl>
+                            <Input
+                                placeholder="0"
+                                min="0"
+                                step="0.01"
+                                className={`bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 ${
+                                isBudgetExceeded
+                                    ? "border-red-500 dark:border-red-500 focus-visible:ring-red-500"
+                                    : "border-zinc-300 dark:border-zinc-700"
+                                }`}
+                                {...field}
+                                onChange={(e) => {
+                                const value = e.target.value.trim();
+                                field.onChange(parseFloat(value) || 0);
+                                }}
+                            />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
+            </div>
           )}
         </div>
 
-        {/* Warnings */}
+        {/* Warnings for Validation */}
         {isObligatedExceeded && totalBudgetAllocated > 0 && (
           <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg">
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
@@ -363,6 +355,20 @@ export function BudgetItemForm({
               </p>
             </div>
           </div>
+        )}
+        
+        {isBudgetExceeded && totalBudgetAllocated > 0 && (
+             <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg">
+             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+             <div className="flex-1">
+               <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                 Utilized Budget Exceeded
+               </p>
+               <p className="text-sm text-red-600/80 dark:text-red-400/80 mt-0.5">
+                 Utilized budget ({totalBudgetUtilized.toFixed(2)}) cannot exceed allocated amount ({totalBudgetAllocated.toFixed(2)})
+               </p>
+             </div>
+           </div>
         )}
 
         {/* Info Box */}

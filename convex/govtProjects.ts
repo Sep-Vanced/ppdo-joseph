@@ -48,12 +48,12 @@ export const createProjectBreakdown = mutation({
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Not authenticated");
 
-        // 🆕 Validate implementing agency exists and is active
+        // Validate implementing agency exists and is active
         const agency = await ctx.db
           .query("implementingAgencies")
           .withIndex("code", (q) => q.eq("code", args.implementingOffice))
           .first();
-
+        
         if (!agency) {
           throw new Error(
             `Implementing agency "${args.implementingOffice}" does not exist. Please add it in Implementing Agencies management first.`
@@ -68,12 +68,14 @@ export const createProjectBreakdown = mutation({
 
         const now = Date.now();
         const { reason, ...breakdownData } = args;
-
+        
+        // Verify parent project exists if provided
         if (args.projectId) {
             const project = await ctx.db.get(args.projectId);
             if (!project) throw new Error("Parent project not found");
         }
 
+        // Insert the breakdown
         const breakdownId = await ctx.db.insert("govtProjectBreakdowns", {
             ...breakdownData,
             createdBy: userId,
@@ -83,13 +85,14 @@ export const createProjectBreakdown = mutation({
             isDeleted: false,
         });
 
-        // 🆕 Update usage count for implementing agency
+        // Update usage count for implementing agency
         await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
           code: args.implementingOffice,
           usageContext: "breakdown",
           delta: 1,
         });
 
+        // Log the activity
         const createdBreakdown = await ctx.db.get(breakdownId);
         await logGovtProjectActivity(ctx, userId, {
             action: "created",
@@ -100,6 +103,8 @@ export const createProjectBreakdown = mutation({
             reason: reason,
         });
 
+        // ✅ RECALCULATE PARENT PROJECT METRICS
+        // This aggregates the new budget figures into the parent Project
         if (args.projectId) {
             await recalculateProjectMetrics(ctx, args.projectId, userId);
         }
@@ -148,34 +153,28 @@ export const updateProjectBreakdown = mutation({
       throw new Error("Breakdown not found");
     }
 
-    // 🆕 If implementing office is changing, validate and update counts
-    // FIX: Store the value in a const to properly narrow the type
+    // Handle Implementing Office Change
     const newImplementingOffice = args.implementingOffice;
     if (newImplementingOffice && newImplementingOffice !== previousBreakdown.implementingOffice) {
       const agency = await ctx.db
         .query("implementingAgencies")
         .withIndex("code", (q) => q.eq("code", newImplementingOffice))
         .first();
-
+      
       if (!agency) {
-        throw new Error(
-          `Implementing agency "${newImplementingOffice}" does not exist. Please add it in Implementing Agencies management first.`
-        );
+        throw new Error(`Implementing agency "${newImplementingOffice}" does not exist.`);
       }
-
       if (!agency.isActive) {
-        throw new Error(
-          `Implementing agency "${newImplementingOffice}" is inactive and cannot be used. Please activate it first.`
-        );
+        throw new Error(`Implementing agency "${newImplementingOffice}" is inactive.`);
       }
 
-      // Update usage counts
+      // Decrement old agency usage
       await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
         code: previousBreakdown.implementingOffice,
         usageContext: "breakdown",
         delta: -1,
       });
-
+      // Increment new agency usage
       await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
         code: newImplementingOffice,
         usageContext: "breakdown",
@@ -183,15 +182,9 @@ export const updateProjectBreakdown = mutation({
       });
     }
 
-    if (args.projectId) {
-      const project = await ctx.db.get(args.projectId);
-      if (!project) {
-        throw new Error("Parent project not found");
-      }
-    }
-
     const oldProjectId = previousBreakdown.projectId;
 
+    // Perform Update
     await ctx.db.patch(breakdownId, {
       ...updates,
       updatedAt: Date.now(),
@@ -200,6 +193,7 @@ export const updateProjectBreakdown = mutation({
 
     const updatedBreakdown = await ctx.db.get(breakdownId);
 
+    // Log Activity
     await logGovtProjectActivity(ctx, userId, {
       action: "updated",
       breakdownId: breakdownId,
@@ -210,18 +204,20 @@ export const updateProjectBreakdown = mutation({
       reason: reason,
     });
 
-    const projectsToRecalculate = new Set<Id<"projects">>();
-
+    // ✅ RECALCULATE PARENT PROJECTS
+    // If the breakdown was moved to a different project, recalculate the old one
     if (oldProjectId && oldProjectId !== args.projectId) {
-      projectsToRecalculate.add(oldProjectId);
+      await recalculateProjectMetrics(ctx, oldProjectId, userId);
     }
 
+    // Recalculate the current (or new) parent project
+    // This updates the Project's Obligated and Utilized budgets
     if (args.projectId) {
-      projectsToRecalculate.add(args.projectId);
-    }
-
-    for (const projectId of projectsToRecalculate) {
-      await recalculateProjectMetrics(ctx, projectId, userId);
+      await recalculateProjectMetrics(ctx, args.projectId, userId);
+    } else if (oldProjectId && args.projectId === undefined) {
+      // If args.projectId wasn't passed (it's optional in update), it means it didn't change.
+      // We must recalculate the existing parent to reflect budget changes.
+      await recalculateProjectMetrics(ctx, oldProjectId, userId);
     }
 
     return { success: true, breakdownId };
@@ -245,15 +241,17 @@ export const deleteProjectBreakdown = mutation({
 
     const projectId = breakdown.projectId;
 
+    // Delete record
     await ctx.db.delete(args.breakdownId);
 
-    // 🆕 Update usage count for implementing agency
+    // Update usage count for implementing agency
     await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
       code: breakdown.implementingOffice,
       usageContext: "breakdown",
       delta: -1,
     });
 
+    // Log activity
     await logGovtProjectActivity(ctx, userId, {
       action: "deleted",
       breakdownId: args.breakdownId,
@@ -262,6 +260,7 @@ export const deleteProjectBreakdown = mutation({
       reason: args.reason,
     });
 
+    // ✅ RECALCULATE PARENT PROJECT
     if (projectId) {
       await recalculateProjectMetrics(ctx, projectId, userId);
     }
@@ -305,29 +304,20 @@ export const bulkCreateBreakdowns = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // 🆕 Validate all implementing agencies before inserting
+    // Validate all implementing agencies first
     const uniqueAgencies = new Set(args.breakdowns.map(b => b.implementingOffice));
-    const agencyMap = new Map<string, any>();
-
     for (const agencyCode of uniqueAgencies) {
       const agency = await ctx.db
         .query("implementingAgencies")
         .withIndex("code", (q) => q.eq("code", agencyCode))
         .first();
-
+      
       if (!agency) {
-        throw new Error(
-          `Implementing agency "${agencyCode}" does not exist. Please add it in Implementing Agencies management first.`
-        );
+        throw new Error(`Implementing agency "${agencyCode}" does not exist.`);
       }
-
       if (!agency.isActive) {
-        throw new Error(
-          `Implementing agency "${agencyCode}" is inactive and cannot be used. Please activate it first.`
-        );
+        throw new Error(`Implementing agency "${agencyCode}" is inactive.`);
       }
-
-      agencyMap.set(agencyCode, agency);
     }
 
     const now = Date.now();
@@ -335,10 +325,9 @@ export const bulkCreateBreakdowns = mutation({
       breakdownId: Id<"govtProjectBreakdowns">; 
       breakdown: any 
     }> = [];
-
     const affectedProjects = new Set<Id<"projects">>();
 
-    // Insert all breakdowns
+    // Insert Loop
     for (const breakdown of args.breakdowns) {
       const breakdownId = await ctx.db.insert("govtProjectBreakdowns", {
         ...breakdown,
@@ -346,20 +335,17 @@ export const bulkCreateBreakdowns = mutation({
         createdAt: now,
         updatedAt: now,
         updatedBy: userId,
+        isDeleted: false,
       });
-
       const createdBreakdown = await ctx.db.get(breakdownId);
-      insertedRecords.push({ 
-        breakdownId, 
-        breakdown: createdBreakdown 
-      });
-
+      insertedRecords.push({ breakdownId, breakdown: createdBreakdown });
+      
       if (breakdown.projectId) {
         affectedProjects.add(breakdown.projectId);
       }
     }
 
-    // 🆕 Update usage counts for all agencies
+    // Bulk Update Agency Usage Counts
     for (const agencyCode of uniqueAgencies) {
       const count = args.breakdowns.filter(b => b.implementingOffice === agencyCode).length;
       await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
@@ -369,6 +355,7 @@ export const bulkCreateBreakdowns = mutation({
       });
     }
 
+    // Log Bulk Activity
     const batchId = await logBulkGovtProjectActivity(
       ctx,
       userId,
@@ -384,6 +371,7 @@ export const bulkCreateBreakdowns = mutation({
       }
     );
 
+    // ✅ RECALCULATE ALL AFFECTED PARENT PROJECTS
     for (const projectId of affectedProjects) {
       await recalculateProjectMetrics(ctx, projectId, userId);
     }
@@ -408,15 +396,18 @@ export const getBreakdownStats = query({
     let allBreakdowns = [];
     
     if (args.budgetItemId) {
+      // Find all projects for this budget item
       const projects = await ctx.db
         .query("projects")
         .withIndex("budgetItemId", (q) => q.eq("budgetItemId", args.budgetItemId))
         .collect();
       
+      // Collect breakdowns for these projects
       const breakdownPromises = projects.map(project =>
         ctx.db
           .query("govtProjectBreakdowns")
           .withIndex("projectId", (q) => q.eq("projectId", project._id))
+          .filter((q) => q.neq(q.field("isDeleted"), true)) // Exclude trash
           .collect()
       );
       
@@ -425,6 +416,7 @@ export const getBreakdownStats = query({
     } else {
       allBreakdowns = await ctx.db
         .query("govtProjectBreakdowns")
+        .filter((q) => q.neq(q.field("isDeleted"), true)) // Exclude trash
         .collect();
     }
 
@@ -487,8 +479,7 @@ export const bulkUpdateBreakdowns = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // 🆕 Validate all new implementing agencies before updating
-    // FIX: Filter properly to get only defined values
+    // Validate any NEW implementing agencies
     const newAgencies = new Set(
       args.updates
         .map(u => u.implementingOffice)
@@ -500,17 +491,12 @@ export const bulkUpdateBreakdowns = mutation({
         .query("implementingAgencies")
         .withIndex("code", (q) => q.eq("code", agencyCode))
         .first();
-
+      
       if (!agency) {
-        throw new Error(
-          `Implementing agency "${agencyCode}" does not exist. Please add it in Implementing Agencies management first.`
-        );
+        throw new Error(`Implementing agency "${agencyCode}" does not exist.`);
       }
-
       if (!agency.isActive) {
-        throw new Error(
-          `Implementing agency "${agencyCode}" is inactive and cannot be used. Please activate it first.`
-        );
+        throw new Error(`Implementing agency "${agencyCode}" is inactive.`);
       }
     }
 
@@ -521,34 +507,24 @@ export const bulkUpdateBreakdowns = mutation({
       previousValues: any;
       newValues: any;
     }> = [];
-
     const affectedProjects = new Set<Id<"projects">>();
-    const agencyChanges = new Map<string, number>(); // Track agency usage changes
+    const agencyChanges = new Map<string, number>();
 
     for (const update of args.updates) {
       const { breakdownId, ...updateData } = update;
-
       const previousBreakdown = await ctx.db.get(breakdownId);
-      if (!previousBreakdown) {
-        console.warn(`Breakdown ${breakdownId} not found, skipping`);
-        continue;
-      }
+      if (!previousBreakdown) continue;
 
-      // Track agency changes
-      // FIX: Store in const for proper type narrowing
+      // Track Parent Projects for recalculation
+      if (previousBreakdown.projectId) affectedProjects.add(previousBreakdown.projectId);
+      if (update.projectId) affectedProjects.add(update.projectId);
+
+      // Track Agency Changes
       const newOffice = update.implementingOffice;
       if (newOffice && newOffice !== previousBreakdown.implementingOffice) {
         const oldAgency = previousBreakdown.implementingOffice;
-        
         agencyChanges.set(oldAgency, (agencyChanges.get(oldAgency) || 0) - 1);
         agencyChanges.set(newOffice, (agencyChanges.get(newOffice) || 0) + 1);
-      }
-
-      if (previousBreakdown.projectId) {
-        affectedProjects.add(previousBreakdown.projectId);
-      }
-      if (update.projectId) {
-        affectedProjects.add(update.projectId);
       }
 
       await ctx.db.patch(breakdownId, {
@@ -556,7 +532,6 @@ export const bulkUpdateBreakdowns = mutation({
         updatedAt: now,
         updatedBy: userId,
       });
-
       const updatedBreakdown = await ctx.db.get(breakdownId);
 
       updatedRecords.push({
@@ -567,7 +542,7 @@ export const bulkUpdateBreakdowns = mutation({
       });
     }
 
-    // 🆕 Apply all agency usage count changes
+    // Apply Agency Changes
     for (const [agencyCode, delta] of agencyChanges.entries()) {
       if (delta !== 0) {
         await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
@@ -594,6 +569,7 @@ export const bulkUpdateBreakdowns = mutation({
       }
     );
 
+    // ✅ RECALCULATE ALL AFFECTED PARENT PROJECTS
     for (const projectId of affectedProjects) {
       await recalculateProjectMetrics(ctx, projectId, userId);
     }
@@ -625,16 +601,12 @@ export const bulkDeleteBreakdowns = mutation({
     }> = [];
 
     const affectedProjects = new Set<Id<"projects">>();
-    const agencyUsage = new Map<string, number>(); // Track deletions per agency
+    const agencyUsage = new Map<string, number>();
 
     for (const breakdownId of args.breakdownIds) {
       const breakdown = await ctx.db.get(breakdownId);
-      if (!breakdown) {
-        console.warn(`Breakdown ${breakdownId} not found, skipping`);
-        continue;
-      }
+      if (!breakdown) continue;
 
-      // Track agency usage
       const agency = breakdown.implementingOffice;
       agencyUsage.set(agency, (agencyUsage.get(agency) || 0) + 1);
 
@@ -643,14 +615,13 @@ export const bulkDeleteBreakdowns = mutation({
       }
 
       await ctx.db.delete(breakdownId);
-
       deletedRecords.push({
         breakdownId,
         previousValues: breakdown,
       });
     }
 
-    // 🆕 Update usage counts for all affected agencies
+    // Update Agency Counts
     for (const [agencyCode, count] of agencyUsage.entries()) {
       await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
         code: agencyCode,
@@ -673,6 +644,7 @@ export const bulkDeleteBreakdowns = mutation({
       }
     );
 
+    // ✅ RECALCULATE ALL AFFECTED PARENT PROJECTS
     for (const projectId of affectedProjects) {
       await recalculateProjectMetrics(ctx, projectId, userId);
     }
@@ -697,9 +669,7 @@ export const getProjectBreakdown = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const breakdown = await ctx.db.get(args.breakdownId);
-    
-    return breakdown;
+    return await ctx.db.get(args.breakdownId);
   },
 });
 
@@ -719,6 +689,7 @@ export const getProjectBreakdowns = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
+    // Filter out soft-deleted items (isDeleted !== true)
     let breakdowns = await ctx.db
       .query("govtProjectBreakdowns")
       .filter((q) => q.neq(q.field("isDeleted"), true))
@@ -790,23 +761,27 @@ export const moveToTrash = mutation({
     const breakdown = await ctx.db.get(args.breakdownId);
     if (!breakdown) throw new Error("Breakdown not found");
 
+    // Mark as deleted
     await ctx.db.patch(args.breakdownId, {
       isDeleted: true,
       deletedAt: Date.now(),
       deletedBy: userId
     });
 
-    // 🆕 Update usage count for implementing agency
+    // Decrement usage count (since it's no longer "active")
     await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
       code: breakdown.implementingOffice,
       usageContext: "breakdown",
       delta: -1,
     });
 
+    // ✅ RECALCULATE PARENT PROJECT
+    // Since this is now "deleted", recalculation will exclude its budget figures from the parent totals
     if (breakdown.projectId) {
       await recalculateProjectMetrics(ctx, breakdown.projectId, userId);
     }
 
+    // Log Activity
     await logGovtProjectActivity(ctx, userId, {
       action: "updated",
       breakdownId: args.breakdownId,
@@ -832,19 +807,22 @@ export const restoreFromTrash = mutation({
     const breakdown = await ctx.db.get(args.breakdownId);
     if (!breakdown) throw new Error("Breakdown not found");
 
+    // Mark as active
     await ctx.db.patch(args.breakdownId, {
       isDeleted: false,
       deletedAt: undefined,
       deletedBy: undefined
     });
 
-    // 🆕 Update usage count for implementing agency
+    // Increment usage count back
     await ctx.runMutation(internal.implementingAgencies.updateUsageCount, {
       code: breakdown.implementingOffice,
       usageContext: "breakdown",
       delta: 1,
     });
 
+    // ✅ RECALCULATE PARENT PROJECT
+    // Recalculation will now include this breakdown's budget figures again
     if (breakdown.projectId) {
       await recalculateProjectMetrics(ctx, breakdown.projectId, userId);
     }
