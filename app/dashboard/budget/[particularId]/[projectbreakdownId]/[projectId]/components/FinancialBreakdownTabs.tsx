@@ -4,22 +4,21 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Id } from "@/convex/_generated/dataModel"
+import { Id, Doc } from "@/convex/_generated/dataModel"
 import { OverviewContent } from "./tabs/OverviewContent"
 import { AnalyticsContent } from "./tabs/AnalyticsContent"
 import { InspectionContent } from "./tabs/InspectionContent"
 import { RemarksContent } from "./tabs/RemarksContent"
-import { mockFinancialBreakdown } from "./mockData" // Import mock data
+import { mockFinancialBreakdown } from "./mockData"
 import { Card } from "./Card"
 
-// Properly type the props with Convex ID
 interface FinancialBreakdownTabsProps {
-  projectId: Id<"projects">
+  projectId: Id<"projects">;
+  breakdown: Doc<"govtProjectBreakdowns">;
+  project: Doc<"projects">;
 }
 
-// Placeholder for the missing ReportContent component - keeps the original structure intact
 const ReportContent: React.FC = () => {
-  // In a real application, this would render content from mockReportContent or fetched data
   return (
     <div className="p-6">
       <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Report Content Placeholder</h2>
@@ -38,7 +37,11 @@ const tabs = [
   { id: "report", label: "Report" },
 ]
 
-export const FinancialBreakdownTabs: React.FC<FinancialBreakdownTabsProps> = ({ projectId }) => {
+export const FinancialBreakdownTabs: React.FC<FinancialBreakdownTabsProps> = ({ 
+  projectId,
+  breakdown, 
+  project 
+}) => {
   const [activeTab, setActiveTab] = useState(tabs[0].id)
 
   const renderContent = () => {
@@ -48,14 +51,13 @@ export const FinancialBreakdownTabs: React.FC<FinancialBreakdownTabsProps> = ({ 
       case "analytics":
         return <AnalyticsContent />
       case "inspection":
-        return <InspectionContent data={mockFinancialBreakdown} />
+        return <InspectionContent data={mockFinancialBreakdown} projectId={projectId} />
       case "remarks":
         return <RemarksContent projectId={projectId} /> 
       case "report":
         return <ReportContent />
       default:
-        // Default to InspectionContent as per original code
-        return <InspectionContent data={mockFinancialBreakdown} />
+        return <InspectionContent data={mockFinancialBreakdown} projectId={projectId} />
     }
   }
 
@@ -67,7 +69,6 @@ export const FinancialBreakdownTabs: React.FC<FinancialBreakdownTabsProps> = ({ 
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            // Styles are preserved exactly as in the original code
             className={`px-6 py-3 text-sm font-medium transition-all relative
                             ${
                               activeTab === tab.id

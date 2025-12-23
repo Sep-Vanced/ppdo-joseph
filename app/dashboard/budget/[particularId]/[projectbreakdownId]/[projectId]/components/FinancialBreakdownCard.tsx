@@ -5,56 +5,30 @@
 import { useState } from "react";
 import { TrendingUp, DollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc } from "@/convex/_generated/dataModel";
 
 interface FinancialBreakdownCardProps {
-  projectId: Id<"projects">;
+  breakdown: Doc<"govtProjectBreakdowns">;
+  project: Doc<"projects">;
 }
 
-export function FinancialBreakdownCard({ projectId }: FinancialBreakdownCardProps) {
+export function FinancialBreakdownCard({ breakdown, project }: FinancialBreakdownCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
-  
-  // Fetch project data from backend
-  const project = useQuery(api.projects.get, { id: projectId });
 
-  if (!project) {
-    return (
-      <Card className="group relative overflow-hidden border-0 shadow-sm bg-white dark:bg-gray-900">
-        <CardContent className="space-y-4 p-6">
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mb-4"></div>
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i}>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-800 rounded w-1/3 mb-2"></div>
-                  <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // ✅ FIXED: Use 'particulars' instead of 'projectName'
-  const description = project.particulars;
-
-  // Use new field names from schema
-  const appropriation = project.totalBudgetAllocated;
-  const obligation = project.totalBudgetUtilized;
-  
-  // Calculate balance (allocated - utilized)
-  const balance = project.totalBudgetAllocated - project.totalBudgetUtilized;
-
-  // Get utilization rate from project (already calculated)
-  const utilizationRate = project.utilizationRate.toFixed(2);
+  // Use breakdown data
+  const description = breakdown.projectTitle || breakdown.projectName;
+  const appropriation = breakdown.allocatedBudget || 0;
+  const obligation = breakdown.budgetUtilized || 0;
+  const balance = breakdown.balance || 0;
+  const utilizationRate = breakdown.utilizationRate?.toFixed(2) || "0.00";
   
   // Calculate percentages
-  const obligatedPercentage = ((obligation / appropriation) * 100).toFixed(1);
-  const remainingPercentage = ((balance / appropriation) * 100).toFixed(1);
+  const obligatedPercentage = appropriation > 0 
+    ? ((obligation / appropriation) * 100).toFixed(1) 
+    : "0.0";
+  const remainingPercentage = appropriation > 0 
+    ? ((balance / appropriation) * 100).toFixed(1) 
+    : "0.0";
 
   return (
     <Card className="group relative overflow-hidden border-0 shadow-sm bg-white dark:bg-gray-900">

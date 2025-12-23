@@ -1,5 +1,3 @@
-// app/dashboard/budget/[particularId]/[projectbreakdownId]/page.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,7 +24,38 @@ import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { TrashBinModal } from "@/app/dashboard/components/TrashBinModal";
 
-// Define the Breakdown type based on your Convex schema
+// Helper function to get full name from particular ID
+const getParticularFullName = (particular: string): string => {
+  const mapping: { [key: string]: string } = {
+    GAD: "Gender and Development (GAD)",
+    LDRRMP: "Local Disaster Risk Reduction and Management Plan",
+    LDRRMF: "Local Disaster Risk Reduction and Management Plan",
+    LCCAP: "Local Climate Change Action Plan",
+    LCPC: "Local Council for the Protection of Children",
+    SCPD: "Sectoral Committee for Persons with Disabilities",
+    POPS: "Provincial Operations",
+    CAIDS: "Community Affairs and Information Development Services",
+    LNP: "Local Nutrition Program",
+    PID: "Provincial Information Department",
+    ACDP: "Agricultural Competitiveness Development Program",
+    LYDP: "Local Youth Development Program",
+    "20%_DF": "20% Development Fund",
+  };
+  return mapping[particular] || particular;
+};
+
+// 🔧 CRITICAL: Extract projectId from slug
+const extractProjectId = (slugWithId: string): string => {
+  const parts = slugWithId.split('-');
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (part.length > 15 && /^[a-z0-9]+$/i.test(part)) {
+      return part;
+    }
+  }
+  return parts[parts.length - 1];
+};
+
 interface Breakdown {
   _id: string;
   projectName: string;
@@ -51,80 +80,43 @@ interface Breakdown {
   fundSource?: string;
 }
 
-// Helper function to get full name from particular ID
-const getParticularFullName = (particular: string): string => {
-  const mapping: { [key: string]: string } = {
-    GAD: "Gender and Development (GAD)",
-    LDRRMP: "Local Disaster Risk Reduction and Management Plan",
-    LDRRMF: "Local Disaster Risk Reduction and Management Plan",
-    LCCAP: "Local Climate Change Action Plan",
-    LCPC: "Local Council for the Protection of Children",
-    SCPD: "Sectoral Committee for Persons with Disabilities",
-    POPS: "Provincial Operations",
-    CAIDS: "Community Affairs and Information Development Services",
-    LNP: "Local Nutrition Program",
-    PID: "Provincial Information Department",
-    ACDP: "Agricultural Competitiveness Development Program",
-    LYDP: "Local Youth Development Program",
-    "20%_DF": "20% Development Fund",
-  };
-  return mapping[particular] || particular;
-};
-
-// Helper function to extract project ID from slug
-const extractProjectId = (slugWithId: string): string => {
-  const parts = slugWithId.split('-');
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const part = parts[i];
-    if (part.length > 15 && /^[a-z0-9]+$/i.test(part)) {
-      return part;
-    }
-  }
-  return parts[parts.length - 1];
-};
-
-const STORAGE_KEY = "project-breakdown-header-visibility";
-
 export default function ProjectBreakdownPage() {
   const router = useRouter();
   const params = useParams();
   const { accentColorValue } = useAccentColor();
   const { setCustomBreadcrumbs } = useBreadcrumb();
+  
+  // 🔧 CRITICAL: Extract IDs from URL params
   const particularId = decodeURIComponent(params.particularId as string);
   const slugWithId = params.projectbreakdownId as string;
   const projectId = extractProjectId(slugWithId);
 
   const [showTrashModal, setShowTrashModal] = useState(false);
-  
-  // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedBreakdown, setSelectedBreakdown] = useState<Breakdown | null>(null);
   const [showHeader, setShowHeader] = useState(false);
-  
-  // 🆕 Recalculation state
   const [isRecalculating, setIsRecalculating] = useState(false);
   
-  // Get the project details
+  // 🔧 CRITICAL: Fetch project using extracted ID
   const project = useQuery(
     api.projects.get,
     projectId ? { id: projectId as Id<"projects"> } : "skip"
   );
   
-  // 🆕 Get parent budget item
+  // Get parent budget item
   const parentBudgetItem = useQuery(
     api.budgetItems.get,
     project?.budgetItemId ? { id: project.budgetItemId } : "skip"
   );
   
-  // Use 'particulars' instead of 'projectName'
+  // 🔧 CRITICAL: Fetch breakdowns filtered by projectId
   const breakdownHistory = useQuery(
     api.govtProjects.getProjectBreakdowns,
     project ? { projectId: projectId as Id<"projects"> } : "skip"
   );
   
-  // Fetch departments for the form
   const departments = useQuery(api.departments.list, { includeInactive: false });
 
   const particularFullName = getParticularFullName(particularId);
@@ -148,10 +140,10 @@ export default function ProjectBreakdownPage() {
   // Mutations
   const createBreakdown = useMutation(api.govtProjects.createProjectBreakdown);
   const updateBreakdown = useMutation(api.govtProjects.updateProjectBreakdown);
-  const deleteBreakdown = useMutation(api.govtProjects.moveToTrash); // Changed from deleteProjectBreakdown to moveToTrash
-  const recalculateProject = useMutation(api.govtProjects.recalculateProject); // 🆕 NEW
+  const deleteBreakdown = useMutation(api.govtProjects.moveToTrash);
+  const recalculateProject = useMutation(api.govtProjects.recalculateProject);
   
-  // 🆕 Handle manual recalculation
+  // Handle manual recalculation
   const handleRecalculate = async () => {
     if (!project) return;
     
@@ -243,7 +235,7 @@ export default function ProjectBreakdownPage() {
       await createBreakdown({
         projectName: breakdownData.projectName,
         implementingOffice: breakdownData.implementingOffice,
-        projectId: projectId as Id<"projects">, // 🆕 Always link to current project
+        projectId: projectId as Id<"projects">,
         projectTitle: breakdownData.projectTitle,
         allocatedBudget: breakdownData.allocatedBudget,
         obligatedBudget: breakdownData.obligatedBudget,
@@ -293,7 +285,7 @@ export default function ProjectBreakdownPage() {
         breakdownId: selectedBreakdown._id as Id<"govtProjectBreakdowns">,
         projectName: breakdownData.projectName,
         implementingOffice: breakdownData.implementingOffice,
-        projectId: projectId as Id<"projects">, // 🆕 Ensure project link
+        projectId: projectId as Id<"projects">,
         projectTitle: breakdownData.projectTitle,
         allocatedBudget: breakdownData.allocatedBudget,
         obligatedBudget: breakdownData.obligatedBudget,
@@ -356,7 +348,6 @@ export default function ProjectBreakdownPage() {
     }
   };
 
-  // Cast the breakdownHistory to match the expected type
   const formattedBreakdownHistory: Breakdown[] = breakdownHistory 
     ? breakdownHistory.map((item: any) => ({
         _id: item._id,
@@ -382,7 +373,6 @@ export default function ProjectBreakdownPage() {
         fundSource: item.fundSource,
       }))
     : [];
-
 
   return (
     <>
@@ -762,7 +752,7 @@ export default function ProjectBreakdownPage() {
             onAdd={() => setShowAddModal(true)}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            onOpenTrash={() => setShowTrashModal(true)} // Pass handler
+            onOpenTrash={() => setShowTrashModal(true)}
           />
         )}
       </div>

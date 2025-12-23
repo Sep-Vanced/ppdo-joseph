@@ -675,6 +675,7 @@ export const getProjectBreakdown = query({
 
 /**
  * Get ACTIVE breakdowns (Hidden Trash)
+ * 🔧 UPDATED: Enhanced to properly handle projectId filtering using index
  */
 export const getProjectBreakdowns = query({
   args: {
@@ -682,23 +683,30 @@ export const getProjectBreakdowns = query({
     implementingOffice: v.optional(v.string()),
     municipality: v.optional(v.string()),
     status: v.optional(v.string()),
-    projectId: v.optional(v.id("projects")),
+    projectId: v.optional(v.id("projects")), // 🔧 Key filter
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // Filter out soft-deleted items (isDeleted !== true)
-    let breakdowns = await ctx.db
-      .query("govtProjectBreakdowns")
-      .filter((q) => q.neq(q.field("isDeleted"), true))
-      .collect();
+    let breakdowns;
 
+    // 🔧 CRITICAL: Use index when filtering by projectId
     if (args.projectId) {
-      breakdowns = breakdowns.filter(b => b.projectId === args.projectId);
+      breakdowns = await ctx.db
+        .query("govtProjectBreakdowns")
+        .withIndex("projectId", (q) => q.eq("projectId", args.projectId!))
+        .filter((q) => q.neq(q.field("isDeleted"), true))
+        .collect();
+    } else {
+      breakdowns = await ctx.db
+        .query("govtProjectBreakdowns")
+        .filter((q) => q.neq(q.field("isDeleted"), true))
+        .collect();
     }
 
+    // Apply additional filters
     if (args.projectName) {
       breakdowns = breakdowns.filter(b => 
         b.projectName.toLowerCase().includes(args.projectName!.toLowerCase())
@@ -720,6 +728,9 @@ export const getProjectBreakdowns = query({
     if (args.status) {
       breakdowns = breakdowns.filter(b => b.status === args.status);
     }
+
+    // Sort by most recent first
+    breakdowns.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     if (args.limit) {
       breakdowns = breakdowns.slice(0, args.limit);

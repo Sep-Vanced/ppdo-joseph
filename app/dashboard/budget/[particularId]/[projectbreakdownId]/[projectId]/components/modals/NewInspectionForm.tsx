@@ -134,22 +134,6 @@ export const NewInspectionForm: React.FC<NewInspectionFormProps> = ({ open, onOp
         
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="programNumber" className="text-sm font-medium">
-              Program Number
-            </Label>
-            <Input 
-              id="programNumber" 
-              name="programNumber" 
-              type="text" 
-              placeholder="e.g., 12" 
-              value={formData.programNumber} 
-              onChange={handleInputChange} 
-              required 
-              className="w-full" 
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="title" className="text-sm font-medium">
               Inspection Title
             </Label>

@@ -3,7 +3,6 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -13,12 +12,10 @@ import { InspectionDetailsModal } from "../modals/InspectionDetailsModal";
 
 interface InspectionContentProps {
   data: any[];
+  projectId: Id<"projects">; // 🔧 Accept projectId as prop
 }
 
-export const InspectionContent: React.FC<InspectionContentProps> = ({ data }) => {
-  const params = useParams();
-  const projectId = params.projectId as Id<"projects">;
-
+export const InspectionContent: React.FC<InspectionContentProps> = ({ data, projectId }) => {
   const inspections = useQuery(api.inspections.listInspectionsByProject, {
     projectId,
   });
