@@ -60,6 +60,7 @@ export const permissionTables = {
     role: v.union(
       v.literal("super_admin"),
       v.literal("admin"),
+      v.literal("inspector"),
       v.literal("user")
     ),
     

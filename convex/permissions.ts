@@ -285,6 +285,7 @@ export const assignToRole = mutation({
     role: v.union(
       v.literal("super_admin"),
       v.literal("admin"),
+      v.literal("inspector"),
       v.literal("user")
     ),
     permissionId: v.id("permissions"),
@@ -345,6 +346,7 @@ export const removeFromRole = mutation({
     role: v.union(
       v.literal("super_admin"),
       v.literal("admin"),
+      v.literal("inspector"),
       v.literal("user")
     ),
     permissionId: v.id("permissions"),
@@ -530,6 +532,7 @@ export const getRolePermissions = query({
     role: v.union(
       v.literal("super_admin"),
       v.literal("admin"),
+      v.literal("inspector"),
       v.literal("user")
     ),
   },

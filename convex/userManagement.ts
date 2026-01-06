@@ -1,4 +1,3 @@
-// convex/userManagement.ts
 // USER MANAGEMENT FUNCTIONS (CREATE, UPDATE, DELETE, LIST)
 
 import { v } from "convex/values";
@@ -16,14 +15,15 @@ export const createUser = mutation({
     lastName: v.string(),
     middleName: v.optional(v.string()),
     nameExtension: v.optional(v.string()),
-    
+
     // DEPRECATED: Keep for backward compatibility
     name: v.optional(v.string()),
-    
+
     email: v.string(),
     role: v.union(
       v.literal("super_admin"),
       v.literal("admin"),
+      v.literal("inspector"),
       v.literal("user")
     ),
     departmentId: v.optional(v.id("departments")),
@@ -44,12 +44,12 @@ export const createUser = mutation({
     }
 
     const currentUser = await ctx.db.get(currentUserId);
-    
+
     // Only super_admin and admin can create users
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
     }
-    
+
     // Only super_admin can create other super_admins
     if (args.role === "super_admin" && currentUser.role !== "super_admin") {
       throw new Error("Not authorized - only super_admin can create other super_admins");
@@ -74,7 +74,6 @@ export const createUser = mutation({
     }
 
     const now = Date.now();
-    
     // Generate full name from components for backward compatibility
     const fullName = formatFullName(
       args.firstName,
@@ -82,7 +81,7 @@ export const createUser = mutation({
       args.lastName,
       args.nameExtension
     );
-    
+
     // Create the user
     const userId = await ctx.db.insert("users", {
       // NEW: Individual name fields
@@ -90,10 +89,10 @@ export const createUser = mutation({
       lastName: args.lastName,
       middleName: args.middleName,
       nameExtension: args.nameExtension,
-      
+
       // BACKWARD COMPATIBILITY: Auto-generated full name
       name: fullName,
-      
+
       email: args.email,
       role: args.role,
       departmentId: args.departmentId,
@@ -141,13 +140,10 @@ export const updateUserProfile = mutation({
     lastName: v.optional(v.string()),
     middleName: v.optional(v.string()),
     nameExtension: v.optional(v.string()),
-    
     // DEPRECATED: Keep for backward compatibility
     name: v.optional(v.string()),
-    
     position: v.optional(v.string()),
     employeeId: v.optional(v.string()),
-    
     // NEW: Image upload support
     imageStorageId: v.optional(v.string()),
   },
@@ -156,12 +152,10 @@ export const updateUserProfile = mutation({
     if (!currentUserId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(currentUserId);
     if (!currentUser) {
       throw new Error("User not found");
     }
-
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
       throw new Error("User not found");
@@ -191,7 +185,6 @@ export const updateUserProfile = mutation({
 
     // Handle name updates - prioritize individual components
     let nameUpdated = false;
-    
     if (args.firstName !== undefined) {
       updateData.firstName = args.firstName;
       nameUpdated = true;
@@ -208,14 +201,14 @@ export const updateUserProfile = mutation({
       updateData.nameExtension = args.nameExtension;
       nameUpdated = true;
     }
-    
+
     // If any name component was updated, regenerate full name
     if (nameUpdated) {
       const firstName = args.firstName ?? targetUser.firstName ?? "";
       const lastName = args.lastName ?? targetUser.lastName ?? "";
       const middleName = args.middleName ?? targetUser.middleName;
       const nameExtension = args.nameExtension ?? targetUser.nameExtension;
-      
+
       // Only generate full name if we have at least firstName or lastName
       if (firstName || lastName) {
         updateData.name = formatFullName(firstName, middleName, lastName, nameExtension);
@@ -224,7 +217,7 @@ export const updateUserProfile = mutation({
       // Fallback: if only old 'name' field is provided
       updateData.name = args.name;
     }
-    
+
     if (args.position !== undefined) updateData.position = args.position;
     if (args.employeeId !== undefined) updateData.employeeId = args.employeeId;
 
@@ -275,9 +268,8 @@ export const deleteUser = mutation({
     if (!currentUserId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(currentUserId);
-    
+
     // Only super_admin and admin can delete users
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
@@ -299,7 +291,6 @@ export const deleteUser = mutation({
     }
 
     const now = Date.now();
-
     // Generate full name for logging - handle optional fields
     let fullName = targetUser.name;
     if (!fullName && (targetUser.firstName || targetUser.lastName)) {
@@ -334,7 +325,6 @@ export const deleteUser = mutation({
       .query("authSessions")
       .withIndex("userId", (q) => q.eq("userId", args.userId))
       .collect();
-    
     for (const session of sessions) {
       await ctx.db.delete(session._id);
     }
@@ -344,7 +334,6 @@ export const deleteUser = mutation({
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) => q.eq("userId", args.userId))
       .collect();
-    
     for (const account of accounts) {
       await ctx.db.delete(account._id);
     }
@@ -354,7 +343,6 @@ export const deleteUser = mutation({
       .query("userPermissions")
       .withIndex("userId", (q) => q.eq("userId", args.userId))
       .collect();
-    
     for (const permission of userPermissions) {
       await ctx.db.delete(permission._id);
     }
@@ -364,7 +352,6 @@ export const deleteUser = mutation({
       .query("deviceFingerprints")
       .withIndex("userId", (q) => q.eq("userId", args.userId))
       .collect();
-    
     for (const device of devices) {
       await ctx.db.delete(device._id);
     }
@@ -374,14 +361,12 @@ export const deleteUser = mutation({
       .query("loginLocations")
       .withIndex("userId", (q) => q.eq("userId", args.userId))
       .collect();
-    
     for (const location of locations) {
       await ctx.db.delete(location._id);
     }
 
     // Finally, delete the user
     await ctx.db.delete(args.userId);
-
     return { success: true };
   },
 });
@@ -395,6 +380,7 @@ export const updateUserRole = mutation({
     newRole: v.union(
       v.literal("super_admin"),
       v.literal("admin"),
+      v.literal("inspector"),
       v.literal("user")
     ),
   },
@@ -403,28 +389,22 @@ export const updateUserRole = mutation({
     if (!currentUserId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(currentUserId);
-    
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
     }
-    
     if (args.newRole === "super_admin" && currentUser.role !== "super_admin") {
       throw new Error("Not authorized - only super_admin can create other super_admins");
     }
-
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
       throw new Error("User not found");
     }
-
     const now = Date.now();
     await ctx.db.patch(args.userId, {
       role: args.newRole,
       updatedAt: now,
     });
-
     await ctx.db.insert("userAuditLog", {
       performedBy: currentUserId,
       targetUserId: args.userId,
@@ -433,7 +413,6 @@ export const updateUserRole = mutation({
       newValues: JSON.stringify({ role: args.newRole }),
       timestamp: now,
     });
-
     return { success: true };
   },
 });
@@ -456,28 +435,22 @@ export const updateUserStatus = mutation({
     if (!currentUserId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(currentUserId);
-    
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
     }
-
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
       throw new Error("User not found");
     }
-    
     if (currentUser.role === "admin" && targetUser.role === "super_admin") {
       throw new Error("Not authorized - cannot modify super_admin status");
     }
-
     const now = Date.now();
     const updateData: any = {
       status: args.newStatus,
       updatedAt: now,
     };
-
     if (args.newStatus === "suspended") {
       updateData.suspensionReason = args.reason;
       updateData.suspendedBy = currentUserId;
@@ -487,21 +460,18 @@ export const updateUserStatus = mutation({
       updateData.suspendedBy = undefined;
       updateData.suspendedAt = undefined;
     }
-
     await ctx.db.patch(args.userId, updateData);
-
     await ctx.db.insert("userAuditLog", {
       performedBy: currentUserId,
       targetUserId: args.userId,
       action: "status_changed",
       previousValues: JSON.stringify({ status: targetUser.status }),
-      newValues: JSON.stringify({ 
-        status: args.newStatus, 
-        reason: args.reason 
+      newValues: JSON.stringify({
+        status: args.newStatus,
+        reason: args.reason
       }),
       timestamp: now,
     });
-
     return { success: true };
   },
 });
@@ -519,31 +489,25 @@ export const updateUserDepartment = mutation({
     if (!currentUserId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(currentUserId);
-    
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
     }
-
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) {
       throw new Error("User not found");
     }
-    
     if (args.departmentId) {
       const department = await ctx.db.get(args.departmentId);
       if (!department) {
         throw new Error("Department not found");
       }
     }
-
     const now = Date.now();
     await ctx.db.patch(args.userId, {
       departmentId: args.departmentId,
       updatedAt: now,
     });
-
     await ctx.db.insert("userAuditLog", {
       performedBy: currentUserId,
       targetUserId: args.userId,
@@ -552,7 +516,6 @@ export const updateUserDepartment = mutation({
       newValues: JSON.stringify({ departmentId: args.departmentId }),
       timestamp: now,
     });
-
     return { success: true };
   },
 });
@@ -570,17 +533,13 @@ export const listAllUsers = query({
     if (!userId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(userId);
-    
     // Only super_admin and admin can list users
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
     }
-
     const limit = args.limit || 100;
     let users;
-    
     if (args.departmentId) {
       // Filter by department
       users = await ctx.db
@@ -602,7 +561,6 @@ export const listAllUsers = query({
         .order("desc")
         .take(limit);
     }
-
     // Get department info for each user and ensure names exist
     const usersWithDepartments = await Promise.all(
       users.map(async (user) => {
@@ -610,10 +568,9 @@ export const listAllUsers = query({
         if (user.departmentId) {
           department = await ctx.db.get(user.departmentId);
         }
-        
         // Ensure user has name field
         const userWithName = ensureUserName(user);
-        
+
         return {
           _id: userWithName._id,
           name: userWithName.name,
@@ -634,7 +591,6 @@ export const listAllUsers = query({
         };
       })
     );
-
     return usersWithDepartments;
   },
 });
@@ -652,18 +608,13 @@ export const getUserAuditLog = query({
     if (!currentUserId) {
       throw new Error("Not authenticated");
     }
-
     const currentUser = await ctx.db.get(currentUserId);
-    
     // Only super_admin and admin can view audit logs
     if (!currentUser || (currentUser.role !== "super_admin" && currentUser.role !== "admin")) {
       throw new Error("Not authorized - administrator access required");
     }
-
     const limit = args.limit || 50;
-
     let logs;
-    
     if (args.userId) {
       logs = await ctx.db
         .query("userAuditLog")
@@ -676,18 +627,16 @@ export const getUserAuditLog = query({
         .order("desc")
         .take(limit);
     }
-
     // Enrich logs with user information
     const enrichedLogs = await Promise.all(
       logs.map(async (log) => {
         const performedByUser = await ctx.db.get(log.performedBy);
         const performedByWithName = performedByUser ? ensureUserName(performedByUser) : null;
-        
         // Handle optional targetUserId
         let targetUser = null;
         let targetUserEmail = null;
         let targetUserName = null;
-        
+
         if (log.targetUserId) {
           targetUser = await ctx.db.get(log.targetUserId);
           if (targetUser) {
@@ -696,7 +645,7 @@ export const getUserAuditLog = query({
             targetUserName = targetWithName.name;
           }
         }
-        
+
         return {
           ...log,
           performedByEmail: performedByWithName?.email,
@@ -706,7 +655,6 @@ export const getUserAuditLog = query({
         };
       })
     );
-
     return enrichedLogs;
   },
 });

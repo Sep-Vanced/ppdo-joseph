@@ -10,7 +10,16 @@ type MutationCtx = GenericMutationCtx<DataModel>;
  * Configuration for activity logging
  */
 export interface ActivityLogConfig {
-  action: "created" | "updated" | "deleted" | "bulk_created" | "bulk_updated" | "bulk_deleted" | "viewed" | "exported" | "imported";
+  action: 
+    | "created" 
+    | "updated" 
+    | "deleted" 
+    | "bulk_created" 
+    | "bulk_updated" 
+    | "bulk_deleted" 
+    | "viewed" 
+    | "exported" 
+    | "imported";
   breakdownId?: Id<"govtProjectBreakdowns">;
   breakdown?: Doc<"govtProjectBreakdowns"> | null;
   previousValues?: any;
@@ -72,7 +81,6 @@ export async function logGovtProjectActivity(
   // Calculate changed fields for updates
   let changedFields: string[] = [];
   let changeSummary: any = {};
-
   if (config.action === "updated" && config.previousValues && config.newValues) {
     changedFields = calculateChangedFields(config.previousValues, config.newValues);
     changeSummary = buildChangeSummary(config.previousValues, config.newValues, changedFields);
@@ -86,42 +94,49 @@ export async function logGovtProjectActivity(
     changeSummary
   );
 
+  // Normalize role to match schema type
+  const normalizedRole = user.role || "user";
+
   // Create activity record
   const activityId = await ctx.db.insert("govtProjectBreakdownActivities", {
     action: config.action,
     breakdownId: config.breakdownId,
     batchId: config.batchId,
-    
     // Contextual data
     projectName,
     implementingOffice,
     municipality,
     barangay,
     district,
-    
+
     // Change tracking
     previousValues: config.previousValues ? JSON.stringify(config.previousValues) : undefined,
     newValues: config.newValues ? JSON.stringify(config.newValues) : undefined,
     changedFields: changedFields.length > 0 ? JSON.stringify(changedFields) : undefined,
     changeSummary: Object.keys(changeSummary).length > 0 ? changeSummary : undefined,
-    
+
     // User metadata
     performedBy: userId,
     performedByName: user.name || "Unknown",
     performedByEmail: user.email || "",
-    performedByRole: user.role || "user",
+    performedByRole: 
+      normalizedRole === "inspector" || 
+      normalizedRole === "super_admin" || 
+      normalizedRole === "admin" 
+        ? normalizedRole 
+        : "user",
     performedByDepartmentId: user.departmentId,
     performedByDepartmentName: departmentName,
-    
+
     reason: config.reason,
     timestamp: now,
-    
+
     // Technical metadata
     ipAddress: config.ipAddress,
     userAgent: config.userAgent,
     source: config.source || "web_ui",
     sessionId: config.sessionId,
-    
+
     // Flags
     isFlagged,
     flagReason,
@@ -143,7 +158,6 @@ function calculateChangedFields(oldValues: any, newValues: any): string[] {
     if (["_id", "_creationTime", "createdAt", "updatedAt", "createdBy", "updatedBy"].includes(key)) {
       continue;
     }
-
     const oldVal = oldValues[key];
     const newVal = newValues[key];
 
@@ -152,7 +166,6 @@ function calculateChangedFields(oldValues: any, newValues: any): string[] {
       changed.push(key);
     }
   }
-
   return changed;
 }
 
@@ -214,9 +227,8 @@ function shouldFlagActivity(
   if (changeSummary.budgetChanged) {
     const oldBudget = oldValues?.allocatedBudget || 0;
     const newBudget = newValues?.allocatedBudget || 0;
-    
     if (oldBudget > 0) {
-      const percentChange = Math.abs((newBudget - oldBudget) / oldBudget * 100);
+      const percentChange = Math.abs(((newBudget - oldBudget) / oldBudget) * 100);
       if (percentChange > 20) {
         return { 
           isFlagged: true, 
@@ -230,9 +242,9 @@ function shouldFlagActivity(
   if (changeSummary.statusChanged) {
     const newStatus = changeSummary.newStatus;
     if (newStatus === "Completed" || newStatus === "Cancelled") {
-      return { 
-        isFlagged: true, 
-        flagReason: `Status changed to ${newStatus}` 
+      return {
+        isFlagged: true,
+        flagReason: `Status changed to ${newStatus}`
       };
     }
   }
@@ -248,7 +260,12 @@ export async function logBulkGovtProjectActivity(
   ctx: MutationCtx,
   userId: Id<"users">,
   action: "bulk_created" | "bulk_updated" | "bulk_deleted",
-  records: Array<{ breakdownId?: Id<"govtProjectBreakdowns">; breakdown?: any; previousValues?: any; newValues?: any }>,
+  records: Array<{ 
+    breakdownId?: Id<"govtProjectBreakdowns">; 
+    breakdown?: any; 
+    previousValues?: any; 
+    newValues?: any 
+  }>,
   config?: {
     reason?: string;
     ipAddress?: string;

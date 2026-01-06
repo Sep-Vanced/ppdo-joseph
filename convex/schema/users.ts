@@ -76,6 +76,7 @@ export const userTables = {
      * User role for RBAC.
      * - super_admin: Full system access, manage all users, departments, and system settings
      * - admin: Department-level admin, can manage users and resources within their department
+     * - inspector: Can view and inspect projects, create inspection reports
      * - user: Standard user access, can manage own resources
      * @default "user"
      */
@@ -83,6 +84,7 @@ export const userTables = {
       v.union(
         v.literal("super_admin"),
         v.literal("admin"),
+        v.literal("inspector"),
         v.literal("user")
       )
     ),

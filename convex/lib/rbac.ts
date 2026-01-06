@@ -137,6 +137,17 @@ export async function isAdmin(
 }
 
 /**
+ * Check if user is inspector
+ */
+export async function isInspector(
+  ctx: QueryCtx | MutationCtx,
+  userId: string
+): Promise<boolean> {
+  const user = await ctx.db.get(userId as any) as Doc<"users"> | null;
+  return user?.role === "inspector";
+}
+
+/**
  * Check if user belongs to a specific department
  */
 export async function isInDepartment(
@@ -239,6 +250,7 @@ export async function getUserEffectivePermissions(
  * Rules:
  * - Super admin: all departments
  * - Admin: their own department only
+ * - Inspector: their own department only
  * - User: their own department only
  */
 export async function canAccessDepartment(
@@ -256,7 +268,7 @@ export async function canAccessDepartment(
     return true;
   }
 
-  // Admin and users can only access their own department
+  // Admin, inspector, and users can only access their own department
   return user.departmentId === departmentId;
 }
 
@@ -282,7 +294,7 @@ export async function getAccessibleDepartments(
     return allDepartments.map(d => d._id);
   }
 
-  // Admin and users can only access their own department
+  // Admin, inspector, and users can only access their own department
   if (user.departmentId) {
     return [user.departmentId];
   }
