@@ -36,7 +36,7 @@ interface UserModalProps {
   user?: User | null;
   departments?: Department[];
   isSubmitting?: boolean;
-  currentUserRole?: "super_admin" | "admin" | "user";
+  currentUserRole?: "super_admin" | "admin" | "inspector" | "user"; // ✅ UPDATED: Added inspector
 }
 
 export function UserModal({
@@ -214,6 +214,7 @@ export function UserModal({
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                   )}
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="inspector">Inspector</SelectItem> {/* ✅ ADDED */}
                   <SelectItem value="user">User</SelectItem>
                 </SelectContent>
               </Select>

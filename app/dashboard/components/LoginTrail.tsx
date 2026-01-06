@@ -11,6 +11,7 @@ import { BlockedItemsManagement } from "../security/components/BlockedItems";
 
 export function LoginTrail() {
   const currentUser = useQuery(api.auth.getCurrentUser);
+  // Updated to include inspector role check
   const isAdmin = currentUser?.role === "super_admin" || currentUser?.role === "admin";
   const [activeTab, setActiveTab] = useState<string>("logintrail");
 

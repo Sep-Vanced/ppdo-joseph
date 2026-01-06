@@ -1,7 +1,4 @@
-// ============================================================================
-// REFACTORED Header Component - Clean and Modular
-// File: app/dashboard/components/Header.tsx
-// ============================================================================
+// app/dashboard/components/Header.tsx
 
 "use client";
 
@@ -12,6 +9,7 @@ import { AccountModal } from "./account/AccountModal";
 import { UserDropdown } from "./header/UserDropdown";
 import { NotificationsDropdown } from "./header/NotificationsDropdown";
 import { EmailDropdown } from "./header/EmailDropdown";
+import { getDisplayName } from "@/lib/utils";
 
 interface HeaderProps {
   onSearchChange?: (query: string) => void;
@@ -25,8 +23,8 @@ export function Header({ onSearchChange, searchQuery }: HeaderProps) {
   // ✅ Use your existing useCurrentUser hook - FULLY DYNAMIC with image support!
   const { user, isLoading } = useCurrentUser();
   
-  // Extract user data
-  const userName = user?.name || user?.firstName || user?.email || "User";
+  // Extract user data with proper name handling
+  const userName = user ? getDisplayName(user) : "User";
 
   // Show loading state while fetching user data
   if (isLoading) {

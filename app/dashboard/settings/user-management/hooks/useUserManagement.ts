@@ -33,7 +33,7 @@ export function useUserManagement() {
         middleName: data.middleName,
         nameExtension: data.nameExtension,
         email: data.email,
-        role: data.role,
+        role: data.role, // ✅ Now includes inspector
         departmentId: data.departmentId,
         position: data.position,
         employeeId: data.employeeId,
@@ -53,7 +53,7 @@ export function useUserManagement() {
   // Update role
   const handleUpdateRole = async (
     userId: Id<"users">,
-    newRole: "super_admin" | "admin" | "user"
+    newRole: "super_admin" | "admin" | "inspector" | "user" // ✅ UPDATED: Added inspector
   ) => {
     try {
       setIsSubmitting(true);
@@ -132,7 +132,7 @@ export function useUserManagement() {
         });
       }
       
-      // Update role if provided
+      // Update role if provided (now includes inspector)
       if (data.role) {
         await updateUserRole({ userId, newRole: data.role });
       }

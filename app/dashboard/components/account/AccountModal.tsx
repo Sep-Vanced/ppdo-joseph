@@ -1,7 +1,4 @@
-// ============================================================================
-// Account Modal - Main Component
-// File: app/dashboard/components/account/AccountModal.tsx
-// ============================================================================
+// app/dashboard/components/account/AccountModal.tsx
 
 "use client";
 

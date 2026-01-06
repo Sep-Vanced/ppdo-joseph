@@ -5,7 +5,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ThemeToggle } from "../dashboard/components/ThemeToggle";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
@@ -182,6 +182,9 @@ export default function SignIn() {
   // Mutations for login trail tracking
   const recordSuccessfulLogin = useMutation(api.auth.recordSuccessfulLogin);
   const recordFailedLogin = useMutation(api.auth.recordFailedLogin);
+  
+  // Query to get current user after successful login
+  const currentUser = useQuery(api.auth.getCurrentUser);
 
   // Fetch location data on mount
   useEffect(() => {
@@ -312,6 +315,18 @@ export default function SignIn() {
 
     fetchLocationData();
   }, []);
+
+  // Handle role-based redirect after successful login
+  useEffect(() => {
+    if (currentUser && !loading) {
+      // Redirect based on role
+      if (currentUser.role === "inspector") {
+        router.push("/inspector");
+      } else {
+        router.push("/dashboard");
+      }
+    }
+  }, [currentUser, loading, router]);
 
   // Helper function to get user agent
   const getUserAgent = () => {
@@ -544,8 +559,8 @@ export default function SignIn() {
                     console.error('Failed to record successful login:', trackingError);
                   }
                   
-                  // Redirect to dashboard
-                  router.push("/dashboard");
+                  // Role-based redirect will be handled by useEffect watching currentUser
+                  // No need to manually redirect here
                 } catch (error: any) {
                   console.error('Sign in error:', error);
                   

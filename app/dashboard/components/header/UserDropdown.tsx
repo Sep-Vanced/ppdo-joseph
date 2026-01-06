@@ -1,7 +1,4 @@
-// ============================================================================
-// User Dropdown Component
-// File: app/dashboard/components/header/UserDropdown.tsx
-// ============================================================================
+// app/dashboard/components/header/UserDropdown.tsx
 
 "use client";
 
@@ -9,6 +6,7 @@ import { useState, useEffect } from "react";
 import { ThemeToggle } from "../ThemeToggle";
 import { useAccentColor } from "../../contexts/AccentColorContext";
 import SignOutButton from "@/app/components/SignOutButton";
+import { getDisplayName, getUserInitials } from "@/lib/utils";
 
 interface User {
   _id: string;
@@ -33,11 +31,12 @@ export function UserDropdown({ user, onOpenAccountModal }: UserDropdownProps) {
   const [hexInputValue, setHexInputValue] = useState<string>("");
   const { accentColorValue, setAccentColor } = useAccentColor();
 
-  // Extract user data
+  // Extract user data using utility functions
   const userEmail = user.email || "";
-  const userName = user.name || "User";
+  const userName = getDisplayName(user);
   const userRole = user.role || "user";
   const userImage = user.image;
+  const userInitials = getUserInitials(user);
 
   // Helper function to format role for display
   const getRoleDisplay = (role: string) => {
@@ -46,36 +45,13 @@ export function UserDropdown({ user, onOpenAccountModal }: UserDropdownProps) {
         return "Super Administrator";
       case "admin":
         return "Administrator";
+      case "inspector":
+        return "Inspector";
       case "user":
         return "User";
       default:
         return "User";
     }
-  };
-
-  // Get user initials for avatar
-  const getUserInitials = () => {
-    // Try to get initials from firstName and lastName first
-    if (user.firstName && user.lastName) {
-      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
-    }
-    
-    // Fallback to name field
-    if (userName && userName !== "User") {
-      return userName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    
-    // Fallback to email
-    if (userEmail) {
-      return userEmail.charAt(0).toUpperCase();
-    }
-    
-    return "U";
   };
 
   // Sync hex input with accent color value
@@ -109,7 +85,7 @@ export function UserDropdown({ user, onOpenAccountModal }: UserDropdownProps) {
             style={{ backgroundColor: accentColorValue }}
           >
             <span className="text-white font-medium text-sm">
-              {getUserInitials()}
+              {userInitials}
             </span>
           </div>
         )}

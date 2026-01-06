@@ -4,7 +4,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
@@ -19,17 +20,36 @@ import { OnboardingModal } from "@/components/modals/OnboardingModal";
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const currentUser = useQuery(api.auth.getCurrentUser);
 
   useEffect(() => {
     if (isLoading) return;
 
     if (!isAuthenticated) {
       router.replace("/signin");
+      return;
     }
-  }, [isAuthenticated, isLoading, router]);
+
+    // If user is authenticated, check their role
+    if (currentUser) {
+      // Inspector users should be redirected to /inspector
+      if (currentUser.role === "inspector") {
+        router.replace("/inspector");
+        return;
+      }
+      
+      // User role can access dashboard (this includes super_admin, admin, and user)
+      // Continue to render dashboard
+    }
+  }, [isAuthenticated, isLoading, currentUser, router]);
 
   // Optional: prevent UI flash while loading / redirecting
-  if (isLoading || !isAuthenticated) {
+  if (isLoading || !isAuthenticated || !currentUser) {
+    return null;
+  }
+
+  // If inspector somehow reaches here, don't render
+  if (currentUser.role === "inspector") {
     return null;
   }
 

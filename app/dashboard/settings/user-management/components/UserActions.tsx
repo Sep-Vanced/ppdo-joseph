@@ -18,7 +18,7 @@ interface User {
   _id: string;
   name?: string;
   email?: string;
-  role?: "super_admin" | "admin" | "user";
+  role?: "super_admin" | "admin" | "inspector" | "user"; // ✅ UPDATED: Added inspector
   status?: "active" | "inactive" | "suspended";
 }
 

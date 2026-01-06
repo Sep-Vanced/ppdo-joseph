@@ -1,12 +1,17 @@
 // app/dashboard/settings/user-management/hooks/useUserFilters.ts
 
 import { useMemo, useState } from "react";
+import { getDisplayName } from "@/lib/utils";
 
 export interface User {
   _id: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  nameExtension?: string;
   email?: string;
-  role?: "super_admin" | "admin" | "user";
+  role?: "super_admin" | "admin" | "inspector" | "user"; // ✅ UPDATED: Added inspector
   departmentId?: string;
   departmentName?: string;
   position?: string;
@@ -19,7 +24,7 @@ export interface User {
 
 export interface UserFilters {
   search: string;
-  role: "all" | "super_admin" | "admin" | "user";
+  role: "all" | "super_admin" | "admin" | "inspector" | "user"; // ✅ UPDATED: Added inspector
   status: "all" | "active" | "inactive" | "suspended";
   departmentId?: string;
 }
@@ -53,17 +58,19 @@ export function useUserFilters(users: User[] | undefined) {
       );
     }
 
-    // Filter by search query
+    // Filter by search query - use getDisplayName for consistent name handling
     if (filters.search.trim()) {
       const query = filters.search.toLowerCase();
-      filtered = filtered.filter(
-        (user) =>
-          user.name?.toLowerCase().includes(query) ||
+      filtered = filtered.filter((user) => {
+        const displayName = getDisplayName(user);
+        return (
+          displayName.toLowerCase().includes(query) ||
           user.email?.toLowerCase().includes(query) ||
           user.departmentName?.toLowerCase().includes(query) ||
           user.position?.toLowerCase().includes(query) ||
           user.employeeId?.toLowerCase().includes(query)
-      );
+        );
+      });
     }
 
     return filtered;

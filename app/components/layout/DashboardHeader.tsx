@@ -1,4 +1,4 @@
-// components/layout/DashboardHeader.tsx
+// app/components/layout/DashboardHeader.tsx
 
 "use client";
 
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, User } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { getInitials } from "@/lib/utils";
+import { getDisplayName, getUserInitials } from "@/lib/utils";
 import { useCurrentUser } from "@/app/hooks/useCurrentUser";
 import { RoleBadge } from "./RoleBadge";
 
@@ -37,6 +37,10 @@ export function DashboardHeader() {
     );
   }
 
+  // Get display name and initials using utility functions
+  const displayName = user ? getDisplayName(user) : "User";
+  const userInitials = user ? getUserInitials(user) : "?";
+
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm">
       <div className="flex h-16 items-center justify-between px-6">
@@ -50,21 +54,21 @@ export function DashboardHeader() {
         {/* User Menu */}
         <div className="flex items-center gap-3">
           {/* Role Badge */}
-          {user?.role && <RoleBadge role={user.role} />}
+          {user?.role && <RoleBadge role={user.role as "super_admin" | "admin" | "inspector" | "user"} />}
 
           {/* User Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 transition-colors">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.image} alt={user?.name} />
+                  <AvatarImage src={user?.image} alt={displayName} />
                   <AvatarFallback className="bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-sm">
-                    {getInitials(user?.name)}
+                    {userInitials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:block text-left">
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {user?.name || "User"}
+                    {displayName}
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {user?.email}

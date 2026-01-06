@@ -1,4 +1,4 @@
-// new project layout with fonts from old project
+// app/layout.tsx
 
 import type { Metadata } from "next";
 import { Cinzel, Inter } from "next/font/google";

@@ -28,6 +28,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { getDisplayName, getUserInitials } from "@/lib/utils";
 
 interface BudgetShareModalProps {
   isOpen: boolean;
@@ -42,12 +43,17 @@ interface SelectedUser {
   accessLevel: "viewer" | "editor" | "admin";
 }
 
+// Updated to include inspector role
 type UserFromList = {
   _id: Id<"users">;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  nameExtension?: string;
   name?: string;
   email?: string;
   departmentName?: string;
-  role?: "super_admin" | "admin" | "user";
+  role?: "super_admin" | "admin" | "inspector" | "user";
   status?: "active" | "inactive" | "suspended";
 };
 
@@ -91,7 +97,9 @@ export default function BudgetShareModal({
     // Don't show users who already have access
     if (usersWithAccess?.some(u => u.userId === user._id)) return false;
     
-    const nameMatch = user.name?.toLowerCase().includes(query);
+    // Use getDisplayName for consistent name handling
+    const displayName = getDisplayName(user);
+    const nameMatch = displayName.toLowerCase().includes(query);
     const emailMatch = user.email?.toLowerCase().includes(query);
     const deptMatch = user.departmentName?.toLowerCase().includes(query);
     
@@ -180,11 +188,13 @@ export default function BudgetShareModal({
   };
 
   const handleSelectUser = (user: UserFromList) => {
+    const displayName = getDisplayName(user);
+    
     setSelectedUsers((prev) => [
       ...prev,
       {
         userId: user._id,
-        name: user.name || "Unknown",
+        name: displayName,
         email: user.email || "",
         departmentName: user.departmentName,
         accessLevel: "viewer", // Default access level
@@ -280,12 +290,9 @@ export default function BudgetShareModal({
     }
   };
 
+  // Use getUserInitials from lib/utils instead of local function
   const getInitials = (name: string) => {
-    const parts = name.split(" ");
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
+    return getUserInitials({ name });
   };
 
   const getAvatarColor = (name: string) => {
@@ -387,38 +394,43 @@ export default function BudgetShareModal({
                 ref={suggestionsRef}
                 className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-[300px] overflow-auto z-50"
               >
-                {filteredUsers.map((user, index) => (
-                  <button
-                    key={user._id}
-                    onClick={() => handleSelectUser(user)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
-                      index === focusedSuggestionIndex
-                        ? "bg-zinc-100 dark:bg-zinc-800"
-                        : ""
-                    }`}
-                  >
-                    <Avatar className="w-10 h-10 flex-shrink-0">
-                      <AvatarFallback
-                        className={`${getAvatarColor(user.name || "U")} text-white`}
-                      >
-                        {getInitials(user.name || "User")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left min-w-0">
-                      <div className="text-sm font-medium text-gray-900 dark:text-zinc-100 truncate">
-                        {user.name || "Unknown User"}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-zinc-400 truncate">
-                        {user.email}
-                      </div>
-                      {user.departmentName && (
-                        <div className="text-xs text-gray-500 dark:text-zinc-500 truncate">
-                          {user.departmentName}
+                {filteredUsers.map((user, index) => {
+                  const displayName = getDisplayName(user);
+                  const initials = getUserInitials(user);
+                  
+                  return (
+                    <button
+                      key={user._id}
+                      onClick={() => handleSelectUser(user)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${
+                        index === focusedSuggestionIndex
+                          ? "bg-zinc-100 dark:bg-zinc-800"
+                          : ""
+                      }`}
+                    >
+                      <Avatar className="w-10 h-10 flex-shrink-0">
+                        <AvatarFallback
+                          className={`${getAvatarColor(displayName)} text-white`}
+                        >
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 text-left min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-zinc-100 truncate">
+                          {displayName}
                         </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                        <div className="text-xs text-gray-600 dark:text-zinc-400 truncate">
+                          {user.email}
+                        </div>
+                        {user.departmentName && (
+                          <div className="text-xs text-gray-500 dark:text-zinc-500 truncate">
+                            {user.departmentName}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
 

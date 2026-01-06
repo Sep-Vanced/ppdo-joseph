@@ -1,7 +1,4 @@
-// ============================================================================
-// Profile Details Tab
-// File: app/dashboard/components/account/ProfileDetailsTab.tsx
-// ============================================================================
+// app/dashboard/components/account/ProfileDetailsTab.tsx
 
 "use client";
 
@@ -9,6 +6,7 @@ import { useState, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { getUserInitials } from "@/lib/utils";
 
 interface User {
   _id: string;
@@ -29,6 +27,22 @@ interface User {
 interface ProfileDetailsTabProps {
   user: User;
 }
+
+// Helper function to get role display name
+const getRoleDisplayName = (role?: string): string => {
+  switch (role) {
+    case "super_admin":
+      return "Super Administrator";
+    case "admin":
+      return "Administrator";
+    case "inspector":
+      return "Inspector";
+    case "user":
+      return "User";
+    default:
+      return "User";
+  }
+};
 
 export function ProfileDetailsTab({ user }: ProfileDetailsTabProps) {
   // Form state
@@ -54,16 +68,13 @@ export function ProfileDetailsTab({ user }: ProfileDetailsTabProps) {
   const updateProfile = useMutation(api.userManagement.updateUserProfile);
   const generateUploadUrl = useMutation(api.media.generateUploadUrl);
 
-  // Get user initials for avatar
-  const getUserInitials = () => {
-    if (firstName && lastName) {
-      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-    }
-    if (user.email) {
-      return user.email.charAt(0).toUpperCase();
-    }
-    return "U";
-  };
+  // Get user initials - use the utility function from lib/utils
+  const userInitials = getUserInitials({
+    firstName: firstName || user.firstName,
+    lastName: lastName || user.lastName,
+    name: user.name,
+    email: user.email,
+  });
 
   // Handle image selection
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,7 +222,7 @@ export function ProfileDetailsTab({ user }: ProfileDetailsTabProps) {
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-zinc-200 dark:border-zinc-700">
                 <span className="text-white font-bold text-2xl">
-                  {getUserInitials()}
+                  {userInitials}
                 </span>
               </div>
             )}
@@ -280,63 +291,63 @@ export function ProfileDetailsTab({ user }: ProfileDetailsTabProps) {
           
           <div className="px-4 pb-4 pt-2 space-y-4 border-t border-zinc-200 dark:border-zinc-800">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* First Name */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              First Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter first name"
-            />
-          </div>
+              {/* First Name */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter first name"
+                />
+              </div>
 
-          {/* Last Name */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Last Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter last name"
-            />
-          </div>
+              {/* Last Name */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter last name"
+                />
+              </div>
 
-          {/* Middle Name */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Middle Name <span className="text-zinc-400 text-xs">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              value={middleName}
-              onChange={(e) => setMiddleName(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter middle name"
-            />
-          </div>
+              {/* Middle Name */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Middle Name <span className="text-zinc-400 text-xs">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter middle name"
+                />
+              </div>
 
-          {/* Name Extension */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Extension <span className="text-zinc-400 text-xs">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              value={nameExtension}
-              onChange={(e) => setNameExtension(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Jr., Sr., III, etc."
-            />
-          </div>
+              {/* Name Extension */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Extension <span className="text-zinc-400 text-xs">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={nameExtension}
+                  onChange={(e) => setNameExtension(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Jr., Sr., III, etc."
+                />
+              </div>
             </div>
           </div>
         </details>
@@ -366,33 +377,33 @@ export function ProfileDetailsTab({ user }: ProfileDetailsTabProps) {
           
           <div className="px-4 pb-4 pt-2 space-y-4 border-t border-zinc-200 dark:border-zinc-800">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Position */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Position <span className="text-zinc-400 text-xs">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter position"
-            />
-          </div>
+              {/* Position */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Position <span className="text-zinc-400 text-xs">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter position"
+                />
+              </div>
 
-          {/* Employee ID */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Employee ID <span className="text-zinc-400 text-xs">(Optional)</span>
-            </label>
-            <input
-              type="text"
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter employee ID"
-            />
-          </div>
+              {/* Employee ID */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Employee ID <span className="text-zinc-400 text-xs">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={employeeId}
+                  onChange={(e) => setEmployeeId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter employee ID"
+                />
+              </div>
             </div>
           </div>
         </details>
@@ -422,31 +433,31 @@ export function ProfileDetailsTab({ user }: ProfileDetailsTabProps) {
           
           <div className="px-4 pb-4 pt-2 space-y-4 border-t border-zinc-200 dark:border-zinc-800">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Email (Read-Only) */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              value={user.email || ""}
-              disabled
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-500 cursor-not-allowed"
-            />
-          </div>
+              {/* Email (Read-Only) */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={user.email || ""}
+                  disabled
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-500 cursor-not-allowed"
+                />
+              </div>
 
-          {/* Role (Read-Only) */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-              Role
-            </label>
-            <input
-              type="text"
-              value={user.role === "super_admin" ? "Super Administrator" : user.role === "admin" ? "Administrator" : "User"}
-              disabled
-              className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-500 cursor-not-allowed"
-            />
-          </div>
+              {/* Role (Read-Only) - Updated to support all 4 roles */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                  Role
+                </label>
+                <input
+                  type="text"
+                  value={getRoleDisplayName(user.role)}
+                  disabled
+                  className="w-full px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-500 cursor-not-allowed"
+                />
+              </div>
             </div>
           </div>
         </details>
