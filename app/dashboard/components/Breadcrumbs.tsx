@@ -21,6 +21,14 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
   const { accentColorValue } = useAccentColor();
   const { customBreadcrumbs, onBreadcrumbClick } = useBreadcrumb();
 
+  const decodeLabel = (value: string) => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
   // Generate breadcrumbs from pathname if not provided
   const generateBreadcrumbs = (): BreadcrumbItem[] => {
     // Priority: items prop > context > auto-generated
@@ -39,8 +47,9 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
       // Skip if it's the dashboard root
       if (segment === "dashboard") return;
 
-      // Format label (capitalize and replace hyphens)
-      const label = segment
+      // Format label (decode URI segments, capitalize, and replace hyphens)
+      const decodedSegment = decodeLabel(segment);
+      const label = decodedSegment
         .split("-")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");

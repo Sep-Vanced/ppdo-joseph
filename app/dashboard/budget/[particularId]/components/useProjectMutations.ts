@@ -69,7 +69,9 @@ export function useProjectMutations(budgetItemId?: Id<"budgetItems">) {
       });
 
       if (response.success) {
-        toast.success(response.message || "Project updated successfully!");
+        toast.success(response.message || "Project updated successfully!", {
+          description: `"${projectData.particulars}" has been updated.`,
+        });
       } else {
         toast.error(response.error?.message || "Failed to update project");
       }
