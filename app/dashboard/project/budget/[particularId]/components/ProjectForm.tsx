@@ -51,8 +51,8 @@ const particularCodeString = z
     message: "Cannot be empty or only whitespace.",
   })
   // Allow accented characters like "ô" while keeping existing allowed symbols
-  .refine((val) => /^[\p{L}0-9_%\s]+$/u.test(val), {
-    message: "Only letters (including accents), numbers, underscores, percentage signs, and spaces are allowed.",
+  .refine((val) => /^[\p{L}0-9_%\s,\.\-@]+$/u.test(val), {
+    message: "Only letters (including accents), numbers, underscores, percentage signs, spaces, commas, periods, hyphens, and @ are allowed.",
   })
   .transform((val) => val.trim());
 

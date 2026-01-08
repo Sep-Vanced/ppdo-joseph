@@ -193,13 +193,13 @@ export const create = mutation({
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
 
-    // ✅ UPDATED: Validate code format (Unicode letters incl. accents, numbers, underscores, %, spaces)
-    const codeRegex = /^[\p{L}0-9_%\s]+$/u;
+    // ✅ UPDATED: Validate code format (Unicode letters incl. accents, numbers, underscores, %, spaces, commas, periods, hyphens, and @)
+    const codeRegex = /^[\p{L}0-9_%\s,.\-@]+$/u;
     const trimmedCode = args.code.trim();
     
     if (!codeRegex.test(trimmedCode)) {
       throw new Error(
-        "Code can only contain letters (including accents), numbers, underscores, percentage signs, and spaces"
+        "Code can only contain letters (including accents), numbers, underscores, percentage signs, spaces, commas, periods, hyphens, and @"
       );
     }
 
@@ -275,11 +275,11 @@ export const update = mutation({
 
       const trimmedCode = args.code.trim();
 
-      // ✅ UPDATED: Validate new code format (allow spaces and %)
-      const codeRegex = /^[A-Z0-9_%\s]+$/;
+      // ✅ UPDATED: Validate new code format (allow spaces, %, commas, periods, hyphens, and @)
+      const codeRegex = /^[A-Z0-9_%\s,.\-@]+$/;
       if (!codeRegex.test(trimmedCode)) {
         throw new Error(
-          "Code can only contain uppercase letters, numbers, underscores, percentage signs, and spaces"
+          "Code can only contain uppercase letters, numbers, underscores, percentage signs, spaces, commas, periods, hyphens, and @"
         );
       }
 

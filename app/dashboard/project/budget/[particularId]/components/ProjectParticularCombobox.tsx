@@ -87,15 +87,15 @@ export function ProjectParticularCombobox({
     return allParticulars?.find((p) => p.code === value);
   }, [allParticulars, value]);
   
-  // ✅ UPDATED: Validate if search query can be a new code (allows accented letters, spaces, and %)
+  // ✅ UPDATED: Validate if search query can be a new code (allows accented letters, spaces, %, commas, periods, hyphens, and @)
   const canCreateNew = React.useMemo(() => {
     if (!searchQuery || searchQuery.trim().length === 0) return false;
     
     const trimmedSearch = searchQuery.trim();
     const upperSearch = trimmedSearch.toUpperCase();
     
-    // ✅ UPDATED: Check format using Unicode letters (including accents)
-    const validFormat = /^[\p{L}0-9_%\s]+$/u.test(upperSearch);
+    // ✅ UPDATED: Check format using Unicode letters (including accents) and allowed symbols
+    const validFormat = /^[\p{L}0-9_%\s,.\-@]+$/u.test(upperSearch);
     if (!validFormat) return false;
     
     // Check if already exists in list
@@ -303,13 +303,13 @@ export function ProjectParticularCombobox({
                       !canCreateNew && (
                         <div className="px-2 py-3 text-xs text-zinc-500 dark:text-zinc-400">
                           {/* ✅ UPDATED: Error message for new validation */}
-                          {!/^[A-Z0-9_%\s]+$/i.test(searchQuery.trim()) ? (
+                          {!/^[A-Z0-9_%\s,.\-@]+$/i.test(searchQuery.trim()) ? (
                             <div className="flex items-start gap-2">
                               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                               <div>
                                 <p className="font-medium">Invalid format</p>
                                 <p className="mt-0.5">
-                                  Code can only contain letters, numbers, underscores, percentage signs, and spaces
+                                  Code can only contain letters, numbers, underscores, percentage signs, spaces, commas, periods, hyphens, and @
                                 </p>
                               </div>
                             </div>

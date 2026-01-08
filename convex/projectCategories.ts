@@ -103,13 +103,13 @@ export const create = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    // ✅ UPDATED: Validate code format (uppercase alphanumeric, underscores, spaces, and percentage signs)
-    const codeRegex = /^[A-Z0-9_%\s]+$/;
+    // ✅ UPDATED: Validate code format (uppercase alphanumeric, underscores, spaces, percentage signs, commas, periods, hyphens, and @)
+    const codeRegex = /^[A-Z0-9_%\s,.\-@]+$/;
     const trimmedCode = args.code.trim();
     
     if (!codeRegex.test(trimmedCode)) {
       throw new Error(
-        "Category code can only contain uppercase letters, numbers, underscores, percentage signs, and spaces"
+        "Category code can only contain uppercase letters, numbers, underscores, percentage signs, spaces, commas, periods, hyphens, and @"
       );
     }
 
@@ -202,11 +202,11 @@ export const update = mutation({
     if (args.code !== undefined && args.code !== existing.code) {
       const trimmedCode = args.code.trim();
       
-      // ✅ UPDATED: Validate new code format (allow spaces and %)
-      const codeRegex = /^[A-Z0-9_%\s]+$/;
+      // ✅ UPDATED: Validate new code format (allow spaces, %, commas, periods, hyphens, and @)
+      const codeRegex = /^[A-Z0-9_%\s,.\-@]+$/;
       if (!codeRegex.test(trimmedCode)) {
         throw new Error(
-          "Category code can only contain uppercase letters, numbers, underscores, percentage signs, and spaces"
+          "Category code can only contain uppercase letters, numbers, underscores, percentage signs, spaces, commas, periods, hyphens, and @"
         );
       }
 
