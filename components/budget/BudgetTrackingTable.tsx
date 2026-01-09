@@ -5,8 +5,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { BudgetItem, SortDirection, SortField } from "../../../../../types/types";
-import { useAccentColor } from "../../../../../contexts/AccentColorContext";
+import { useAccentColor } from "@/contexts/AccentColorContext";
 import { Modal } from "./Modal";
 import { ConfirmationModal } from "./ConfirmationModal";
 import { BudgetItemForm } from "./BudgetItemForm";
@@ -26,6 +25,17 @@ import {
 } from "lucide-react";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
+import { BudgetItem, SortDirection, SortField } from "@/types/types";
+import { Button } from "@/components/ui/button";
+import DashboardToolbar from "@/components/ui/dashboard-toolbar";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface BudgetTrackingTableProps {
   budgetItems: BudgetItem[];
@@ -68,11 +78,10 @@ export function BudgetTrackingTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [yearFilter, setYearFilter] = useState<number[]>([]);
-  const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [showHeaderSkeleton, setShowHeaderSkeleton] = useState(true);
   
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const filterMenuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin =
     accessCheck?.user?.role === "admin" ||
@@ -111,12 +120,22 @@ export function BudgetTrackingTable({
   }, []);
 
   useEffect(() => {
+    // If coming from project page with intent to add a new item
+    try {
+      const shouldOpenAdd = typeof window !== "undefined" ? localStorage.getItem("budget_open_add") : null;
+      if (shouldOpenAdd === "true") {
+        setShowAddModal(true);
+        localStorage.removeItem("budget_open_add");
+      }
+    } catch (_) {
+      // storage unavailable
+    }
+  }, []);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target as Node)) {
         setContextMenu(null);
-      }
-      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
-        setActiveFilterColumn(null);
       }
     };
 
@@ -127,11 +146,15 @@ export function BudgetTrackingTable({
   useEffect(() => {
     const handleScroll = () => {
       setContextMenu(null);
-      setActiveFilterColumn(null);
     };
 
     document.addEventListener("scroll", handleScroll, true);
     return () => document.removeEventListener("scroll", handleScroll, true);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowHeaderSkeleton(false), 600);
+    return () => clearTimeout(t);
   }, []);
 
   const uniqueStatuses = useMemo(() => {
@@ -380,77 +403,79 @@ export function BudgetTrackingTable({
     <>
       <div className="print-area bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 space-y-4 no-print">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Budget Items
-            </h3>
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-              <button
+          <DashboardToolbar
+            title="Budget Items"
+            actions={
+              <>
+              <Button
                 onClick={onOpenTrash}
-                className="cursor-pointer px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:scale-105 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800"
+                variant="outline"
+                size="sm"
+                className="gap-2 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800"
                 title="View Recycle Bin"
               >
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Recycle Bin</span>
-                </div>
-              </button>
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Recycle Bin</span>
+              </Button>
               {isAdmin && (
-                <button
+                <Button
                   onClick={() => setShowShareModal(true)}
-                  className="relative px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                  variant="secondary"
+                  size="sm"
+                  className="relative gap-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
                   title="Share & Manage Access"
                 >
-                  <div className="flex items-center gap-2">
-                    <Share2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">Share</span>
-                  </div>
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Share</span>
                   {pendingRequestsCount !== undefined && pendingRequestsCount > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {pendingRequestsCount > 9 ? "9+" : pendingRequestsCount}
                     </span>
                   )}
-                </button>
+                </Button>
               )}
               {expandButton}
-              <button
+              <Button
                 onClick={toggleSearch}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md ${
+                variant="outline"
+                size="sm"
+                className={`${
                   isSearchVisible 
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-2 border-blue-500' 
                     : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600'
-                }`}
+                } gap-2`}
                 title={isSearchVisible ? "Hide Search" : "Show Search"}
               >
-                <div className="cursor-pointer flex items-center gap-2">
-                  <Search className="w-4 h-4" />
-                  <span className="hidden sm:inline">Search</span>
-                </div>
-              </button>
-              <button
+                <Search className="w-4 h-4" />
+                <span className="hidden sm:inline">Search</span>
+              </Button>
+              <Button
                 onClick={handlePrint}
-                className="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
+                variant="outline"
+                size="sm"
+                className="gap-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-300 dark:hover:bg-zinc-600"
                 title="Print"
               >
-                <div className="cursor-pointer flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  <span className="hidden sm:inline">Print</span>
-                </div>
-              </button>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                <span className="hidden sm:inline">Print</span>
+              </Button>
               {onAdd && (
-                <button
+                <Button
                   onClick={() => setShowAddModal(true)}
-                  className="cursor-pointer px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all hover:shadow-md text-white flex-1 sm:flex-none"
+                  size="sm"
+                  className="flex-1 sm:flex-none text-white"
                   style={{ backgroundColor: accentColorValue }}
                 >
                   <span className="hidden sm:inline">Add New Item</span>
                   <span className="sm:hidden">Add</span>
-                </button>
+                </Button>
               )}
-            </div>
-          </div>
+              </>
+            }
+          />
+          
 
           {isSearchVisible && (
             <div className="space-y-4 animate-in slide-in-from-top duration-200">
@@ -469,14 +494,16 @@ export function BudgetTrackingTable({
                   />
                 </div>
                 {hasActiveFilters && (
-                  <button
+                  <Button
                     onClick={clearAllFilters}
-                    className="px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                   >
                     <X className="w-4 h-4" />
                     <span className="hidden sm:inline">Clear Filters</span>
                     <span className="sm:hidden">Clear</span>
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -546,92 +573,66 @@ export function BudgetTrackingTable({
                   </button>
                 </th>
                 <th className="px-4 sm:px-6 py-4 text-center sticky top-0 bg-zinc-50 dark:bg-zinc-950 z-10">
-                  <div className="relative inline-block">
-                    <button
-                      onClick={() => setActiveFilterColumn(activeFilterColumn === "year" ? null : "year")}
-                      className="group flex items-center gap-2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                    >
-                      <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
-                        Year
-                      </span>
-                      <Filter className={`w-3.5 h-3.5 ${yearFilter.length > 0 ? 'text-blue-600' : 'opacity-50'}`} />
-                    </button>
-                    
-                    {activeFilterColumn === "year" && (
-                      <div
-                        ref={filterMenuRef}
-                        className="absolute top-full left-0 mt-2 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-2 z-50 min-w-[150px]"
-                      >
-                        <div className="px-3 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 mb-1">
-                          Filter by Year
-                        </div>
-                        {uniqueYears.length > 0 ? (
-                          uniqueYears.map(year => (
-                            <button
-                              key={year}
-                              onClick={() => toggleYearFilter(year)}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between ${
-                                yearFilter.includes(year) ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-zinc-700 dark:text-zinc-300'
-                              }`}
-                            >
-                              {year}
-                              {yearFilter.includes(year) && (
-                                <span className="text-blue-600 dark:text-blue-400">✓</span>
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-                            No years available
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="group flex items-center gap-2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                          Year
+                        </span>
+                        {showHeaderSkeleton && <Skeleton className="h-3 w-8 rounded" />}
+                        <Filter className={`w-3.5 h-3.5 ${yearFilter.length > 0 ? 'text-blue-600' : 'opacity-50'}`} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center">
+                      <DropdownMenuLabel>Filter by Year</DropdownMenuLabel>
+                      {uniqueYears.length > 0 ? (
+                        uniqueYears.map((year) => (
+                          <DropdownMenuCheckboxItem
+                            key={year}
+                            checked={yearFilter.includes(year)}
+                            onCheckedChange={() => toggleYearFilter(year)}
+                          >
+                            {year}
+                          </DropdownMenuCheckboxItem>
+                        ))
+                      ) : (
+                        <DropdownMenuCheckboxItem disabled checked={false}>
+                          No years available
+                        </DropdownMenuCheckboxItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </th>
                 <th className="px-4 sm:px-6 py-4 text-center sticky top-0 bg-zinc-50 dark:bg-zinc-950 z-10">
-                  <div className="relative inline-block">
-                    <button
-                      onClick={() => setActiveFilterColumn(activeFilterColumn === "status" ? null : "status")}
-                      className="group flex items-center gap-2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-                    >
-                      <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
-                        Status
-                      </span>
-                      <Filter className={`w-3.5 h-3.5 ${statusFilter.length > 0 ? 'text-blue-600' : 'opacity-50'}`} />
-                    </button>
-                    
-                    {activeFilterColumn === "status" && (
-                      <div
-                        ref={filterMenuRef}
-                        className="absolute top-full left-0 mt-2 bg-white dark:bg-zinc-800 rounded-lg shadow-lg border border-zinc-200 dark:border-zinc-700 py-2 z-50 min-w-[150px]"
-                      >
-                        <div className="px-3 py-1 text-xs font-medium text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 mb-1">
-                          Filter by Status
-                        </div>
-                        {uniqueStatuses.length > 0 ? (
-                          uniqueStatuses.map(status => (
-                            <button
-                              key={status}
-                              onClick={() => toggleStatusFilter(status)}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between ${
-                                statusFilter.includes(status) ? 'text-blue-600 dark:text-blue-400 font-medium' : 'text-zinc-700 dark:text-zinc-300'
-                              }`}
-                            >
-                              {status.charAt(0).toUpperCase() + status.slice(1)}
-                              {statusFilter.includes(status) && (
-                                <span className="text-blue-600 dark:text-blue-400">✓</span>
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-                            No statuses available
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="group flex items-center gap-2 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors">
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                          Status
+                        </span>
+                        {showHeaderSkeleton && <Skeleton className="h-3 w-10 rounded" />}
+                        <Filter className={`w-3.5 h-3.5 ${statusFilter.length > 0 ? 'text-blue-600' : 'opacity-50'}`} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center">
+                      <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                      {uniqueStatuses.length > 0 ? (
+                        uniqueStatuses.map((status) => (
+                          <DropdownMenuCheckboxItem
+                            key={status}
+                            checked={statusFilter.includes(status)}
+                            onCheckedChange={() => toggleStatusFilter(status)}
+                          >
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </DropdownMenuCheckboxItem>
+                        ))
+                      ) : (
+                        <DropdownMenuCheckboxItem disabled checked={false}>
+                          No statuses available
+                        </DropdownMenuCheckboxItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </th>
                 <th className="px-4 sm:px-6 py-4 text-right sticky top-0 bg-zinc-50 dark:bg-zinc-950 z-10">
                   <button

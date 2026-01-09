@@ -7,9 +7,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Project } from "../../../../../../types/types";
-import { useAccentColor } from "../../../../../../contexts/AccentColorContext";
-import { Modal } from "../../components/Modal";
-import { ConfirmationModal } from "../../components/ConfirmationModal";
+import { useAccentColor } from "@/contexts/AccentColorContext";
 import { ProjectForm } from "./ProjectForm";
 import { motion } from "framer-motion";
 import {
@@ -62,6 +60,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
+import { ConfirmationModal } from "@/components/budget/ConfirmationModal";
+import { Modal } from "@/components/budget/Modal";
 
 interface ProjectsTableProps {
   projects: Project[];
@@ -1039,7 +1039,7 @@ export function ProjectsTable({
       />
 
       {showSingleCategoryModal && selectedCategoryProject && (
-         <Modal 
+         <Modal
             isOpen={showSingleCategoryModal} 
             onClose={() => { setShowSingleCategoryModal(false); setSelectedCategoryProject(null); }} 
             title="Move Project to Category"

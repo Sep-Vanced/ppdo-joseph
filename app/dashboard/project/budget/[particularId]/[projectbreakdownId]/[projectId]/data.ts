@@ -1,7 +1,7 @@
 // app/dashboard/project/budget/[particularId]/[projectbreakdownId]/[projectId]/data.ts
 
 import { Project, Remark } from "../../../../../../../types/types";
-import { getProjectsByParticular } from "../../data";
+import { getProjectsByParticular } from "../../../../../../../data/data";
 import { FinancialBreakdownItem } from "./components/types";
 
 // Mock remarks data - in production, this would come from an API

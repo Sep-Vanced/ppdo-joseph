@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { Expand } from "lucide-react";
 import AccessDeniedPage from "@/components/AccessDeniedPage";
-import { BudgetPageHeader, ExpandModal, LoadingState, useBudgetAccess, useBudgetData, useBudgetMutations } from "./components";
-import { BudgetTrackingTable } from "./components/BudgetTrackingTable";
 import { TrashBinModal } from "../../../../components/TrashBinModal";
-import BudgetStatistics from "./components/BudgetStatistics";
+import BudgetStatistics from "@/components/budget/BudgetStatistics";
+import { BudgetTrackingTable } from "@/components/budget/BudgetTrackingTable";
+import { BudgetPageHeader, ExpandModal, LoadingState, useBudgetAccess, useBudgetData, useBudgetMutations } from "@/components/budget";
+import { Button } from "@/components/ui/button";
+
 
 
 export default function BudgetTrackingPage() {
@@ -57,12 +59,15 @@ export default function BudgetTrackingPage() {
           onDelete={handleDelete}
           onOpenTrash={() => setShowTrashModal(true)}
           expandButton={
-            <button
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Expand table"
               onClick={() => setIsExpandModalOpen(true)}
-              className="cursor-pointer items-center justify-center px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
               <Expand className="w-4 h-4" />
-            </button>
+            </Button>
           }
         />
       </div>

@@ -38,8 +38,8 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { ChevronDown, MapPin, FileText, AlertTriangle, Info, TrendingUp, Package, Eye, EyeOff } from "lucide-react";
 import { ImplementingOfficeSelector } from "./ImplementingOfficeSelector";
-import { BudgetViolationModal } from "../../../components/BudgetViolationModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { BudgetViolationModal } from "@/components/budget/BudgetViolationModal";
 
 // Updated Schema
 const breakdownSchema = z.object({
@@ -1072,7 +1072,7 @@ export function BreakdownForm({
       </Form>
 
       {/* UNIFIED VIOLATION MODAL */}
-      <BudgetViolationModal 
+      <BudgetViolationModal
         isOpen={showViolationModal}
         onClose={() => {
             setShowViolationModal(false);

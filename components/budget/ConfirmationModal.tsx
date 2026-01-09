@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useAccentColor } from "../../../../../contexts/AccentColorContext";
+import { useAccentColor } from "@/contexts/AccentColorContext";
 
 interface ConfirmationModalProps {
   isOpen: boolean;

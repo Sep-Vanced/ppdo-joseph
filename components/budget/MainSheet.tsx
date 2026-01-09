@@ -12,6 +12,8 @@ import { getCellKey as getCellKeyUtil } from "@/utils/spreadsheet"
 import type { CellPosition, CellData } from "@/types/spreadsheet"
 import { COLUMNS, ROWS } from "@/constants/spreadsheet"
 
+
+
 export default function MainSheet() {
   const [selectedCell, setSelectedCell] = useState<CellPosition>({ row: 1, col: 0 })
   const [cellData, setCellData] = useState<CellData>({})

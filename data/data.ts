@@ -1,6 +1,6 @@
 // app/dashboard/project/budget/[particularId]/data.ts
 
-import { Project, BudgetParticular, PARTICULAR_FULL_NAMES } from "../../../../../types/types";
+import { Project, BudgetParticular, PARTICULAR_FULL_NAMES } from "../types/types";
 
 // Mock project data - in production, this would come from an API
 export function getProjectsByParticular(

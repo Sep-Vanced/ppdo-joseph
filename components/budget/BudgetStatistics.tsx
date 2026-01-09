@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface BudgetStatisticsProps {
   totalAllocated: number;
@@ -26,7 +27,7 @@ export default function BudgetStatistics({
   return (
     <section
       aria-label="Budget statistics"
-      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 no-print"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch gap-4 mb-6 no-print"
     >
       <StatCard
         label="Total Budget Allocated"
@@ -53,20 +54,15 @@ const StatCard = React.memo(function StatCard({
   value: string;
 }) {
   return (
-    <div
-      role="group"
-      aria-label={label}
-      className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-6 h-full flex flex-col justify-between"
-    >
-      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
-        {label}
-      </p>
-      <p
-        className="text-2xl font-bold text-zinc-900 dark:text-zinc-100"
-        aria-live="polite"
-      >
-        {value}
-      </p>
-    </div>
+    <Card role="group" aria-label={label} className="h-full">
+      <CardContent className="p-6">
+        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100" aria-live="polite">
+          {value}
+        </p>
+      </CardContent>
+    </Card>
   );
 });

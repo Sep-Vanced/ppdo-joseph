@@ -9,7 +9,7 @@ import { z } from "zod";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useAccentColor } from "../../../../../../contexts/AccentColorContext";
+import { useAccentColor } from "@/contexts/AccentColorContext";
 import {
   Form,
   FormControl,
@@ -39,7 +39,7 @@ import { Project } from "../../../../../../types/types";
 import { ProjectParticularCombobox } from "./ProjectParticularCombobox";
 import { ImplementingOfficeSelector } from "./ImplementingOfficeSelector";
 import { ProjectCategoryCombobox } from "./ProjectCategoryCombobox";
-import { BudgetViolationModal } from "@/app/dashboard/project/budget//components/BudgetViolationModal";
+import { BudgetViolationModal } from "@/components/budget/BudgetViolationModal";
 
 const FORM_STORAGE_KEY = "project_form_draft";
 
@@ -646,7 +646,7 @@ export function ProjectForm({ project, budgetItemId, onSave, onCancel }: Project
         </form>
       </Form>
 
-      <BudgetViolationModal 
+      <BudgetViolationModal
         isOpen={showViolationModal}
         onClose={() => {
             setShowViolationModal(false);

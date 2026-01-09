@@ -6,12 +6,11 @@ import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import { useAccentColor } from "../../../../../../contexts/AccentColorContext";
+import { useAccentColor } from "@/contexts/AccentColorContext";
 import { useBreadcrumb } from "../../../../../../contexts/BreadcrumbContext";
 import { BreakdownHistoryTable } from "./components/BreakdownHistoryTable";
 import { BreakdownForm } from "./components/BreakdownForm";
-import { Modal } from "../../components/Modal";
-import { ConfirmationModal } from "../../components/ConfirmationModal";
+
 import { toast } from "sonner";
 import { ActivityLogSheet } from "../../../../../../components/ActivityLogSheet";
 import {
@@ -23,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { TrashBinModal } from "@/components/TrashBinModal";
+import { Modal } from "@/components/budget/Modal";
+import { ConfirmationModal } from "@/components/budget/ConfirmationModal";
 
 // Helper function to get full name from particular ID
 const getParticularFullName = (particular: string): string => {
