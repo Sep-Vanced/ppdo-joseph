@@ -2,7 +2,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
-import { BudgetItem } from "../../../../../types/types";
+import { BudgetItem } from "@/types/types";
 
 export function useBudgetMutations() {
   const createBudgetItem = useMutation(api.budgetItems.create);

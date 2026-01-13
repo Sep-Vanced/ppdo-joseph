@@ -1,6 +1,6 @@
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { BudgetItemFromDB, BudgetItem } from "../../../../../types/types";
+import { BudgetItem, BudgetItemFromDB } from "@/types/types";
 
 export function useBudgetData() {
   const budgetItemsFromDB = useQuery(api.budgetItems.list);
