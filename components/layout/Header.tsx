@@ -22,6 +22,8 @@ export default function Header() {
           {/* LEFT */}
           <div className="hidden sm:flex items-center gap-6">
             <span className="font-extrabold text-lg tracking-wide">GOVPH</span>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:gap-4 justify-center sm:justify-end">
             <Link
               href="/signin"
               className="flex items-center gap-1 px-3 hover:underline"

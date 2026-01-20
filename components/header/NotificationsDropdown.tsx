@@ -7,39 +7,120 @@
 
 import { useState } from "react";
 import { useAccentColor } from "../../contexts/AccentColorContext";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Doc } from "../../convex/_generated/dataModel";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Textarea } from "../ui/textarea";
 
 export function NotificationsDropdown() {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(3);
+  const [selectedRequest, setSelectedRequest] = useState<Doc<"accessRequests"> | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [adminNotes, setAdminNotes] = useState("");
   const { accentColorValue } = useAccentColor();
 
-  // Mock notification data - Replace with real data from your backend
-  const notifications = [
-    {
-      id: 1,
-      title: "New document received",
-      message: "A new incoming document requires your review",
-      time: "5 minutes ago",
-      isRead: false,
-    },
-    {
-      id: 2,
-      title: "Approval pending",
-      message: "3 documents are waiting for your approval",
-      time: "1 hour ago",
-      isRead: false,
-    },
-    {
-      id: 3,
-      title: "System update",
-      message: "System maintenance scheduled for tonight",
-      time: "2 hours ago",
-      isRead: false,
-    },
-  ];
+  // Get current user
+  const currentUser = useQuery(api.users.current);
+
+  // Mutation for updating request status
+  const updateStatus = useMutation(api.accessRequests.updateStatus);
+
+  // Handle notification click
+  const handleNotificationClick = (request: Doc<"accessRequests"> | null) => {
+    if (!request) return;
+    setSelectedRequest(request);
+    setAdminNotes("");
+    setShowModal(true);
+  };
+
+  // Handle status update
+  const handleStatusUpdate = async (status: "pending" | "approved" | "rejected") => {
+    if (!selectedRequest) return;
+
+    try {
+      await updateStatus({
+        requestId: selectedRequest._id,
+        status,
+        adminNotes: adminNotes.trim() || undefined,
+      });
+      setShowModal(false);
+      setSelectedRequest(null);
+      setAdminNotes("");
+    } catch (error) {
+      console.error("Failed to update request status:", error);
+    }
+  };
+
+  // Get notifications based on role
+  const accessRequests = useQuery(
+    currentUser?.role === "super_admin" || currentUser?.role === "admin"
+      ? api.accessRequests.list
+      : api.accessRequests.myRequests
+  );
+
+  // Transform access requests into notifications
+  const notifications = accessRequests?.map((request) => {
+    const isAdmin = currentUser?.role === "super_admin" || currentUser?.role === "admin";
+    
+    let title = "";
+    let message = "";
+    let isRead = false;
+
+    if (isAdmin) {
+      // For admins: show pending access requests
+      title = `Access Request from ${request.userName}`;
+      message = `${request.userName} from ${request.departmentName} is requesting ${request.accessType} access to ${request.pageRequested}`;
+      isRead = request.status !== "pending";
+    } else {
+      // For users: show status of their requests
+      title = `Access Request ${request.status.charAt(0).toUpperCase() + request.status.slice(1)}`;
+      message = `Your request for ${request.accessType} access to ${request.pageRequested} has been ${request.status}`;
+      if (request.adminNotes) {
+        message += `. Notes: ${request.adminNotes}`;
+      }
+      // For users: mark as unread if status changed recently (within last 24 hours)
+      // or if it's a new status update (approved/rejected)
+      const timeSinceUpdate = Date.now() - request.updatedAt;
+      const isRecentUpdate = timeSinceUpdate < (24 * 60 * 60 * 1000); // 24 hours
+      isRead = !isRecentUpdate && request.status === "pending";
+    }
+
+    // Calculate time ago
+    const timeDiff = Date.now() - request.updatedAt;
+    const minutes = Math.floor(timeDiff / (1000 * 60));
+    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+
+    let time = "";
+    if (days > 0) {
+      time = `${days} day${days > 1 ? 's' : ''} ago`;
+    } else if (hours > 0) {
+      time = `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else {
+      time = `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    }
+
+    return {
+      id: request._id,
+      title,
+      message,
+      time,
+      isRead,
+    };
+  }) || [];
+
+  const notificationCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="relative hidden">
+    <div className="relative">
       <button
         onClick={() => setShowNotifications(!showNotifications)}
         className="relative p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -92,25 +173,21 @@ export function NotificationsDropdown() {
                 Notifications
               </h3>
               {notificationCount > 0 && (
-                <button
-                  onClick={() => setNotificationCount(0)}
-                  className="text-sm font-medium"
-                  style={{ color: accentColorValue }}
-                >
-                  Mark all as read
-                </button>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {notificationCount} unread
+                </span>
               )}
             </div>
 
             {/* Notifications List */}
             <div className="flex-1 overflow-y-auto">
-              {notificationCount > 0 ? (
+              {notifications.length > 0 ? (
                 <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
                       className="p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 cursor-pointer transition-colors"
-                      onClick={() => setShowNotifications(false)}
+                      onClick={() => handleNotificationClick(accessRequests?.find(r => r._id === notification.id) || null)}
                     >
                       <div className="flex items-start gap-3">
                         {/* Unread indicator */}
@@ -155,7 +232,7 @@ export function NotificationsDropdown() {
                     />
                   </svg>
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    No new notifications
+                    No notifications
                   </p>
                 </div>
               )}
@@ -163,6 +240,79 @@ export function NotificationsDropdown() {
           </div>
         </>
       )}
-    </div>
+      {/* Request Details Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {currentUser?.role === "super_admin" || currentUser?.role === "admin"
+                ? "Access Request Review"
+                : "Request Details"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedRequest && (
+                <div className="space-y-4 mt-4">
+                  <div>
+                    <h4 className="font-semibold text-sm">Request Details</h4>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong>User:</strong> {selectedRequest.userName} ({selectedRequest.userEmail})
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong>Department:</strong> {selectedRequest.departmentName}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong>Page:</strong> {selectedRequest.pageRequested}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong>Access Type:</strong> {selectedRequest.accessType}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong>Reason:</strong> {selectedRequest.reason}
+                    </p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong>Status:</strong> {selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)}
+                    </p>
+                    {selectedRequest.adminNotes && (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        <strong>Admin Notes:</strong> {selectedRequest.adminNotes}
+                      </p>
+                    )}
+                  </div>
+
+                  {(currentUser?.role === "super_admin" || currentUser?.role === "admin") && selectedRequest.status === "pending" && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Admin Notes (Optional)</label>
+                        <Textarea
+                          value={adminNotes}
+                          onChange={(e) => setAdminNotes(e.target.value)}
+                          placeholder="Add notes about your decision..."
+                          className="min-h-[80px]"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleStatusUpdate("approved")}
+                          className="flex-1"
+                          style={{ backgroundColor: accentColorValue }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          onClick={() => handleStatusUpdate("rejected")}
+                          variant="destructive"
+                          className="flex-1"
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>    </div>
   );
 }

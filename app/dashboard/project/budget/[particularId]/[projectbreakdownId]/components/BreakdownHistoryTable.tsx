@@ -414,7 +414,7 @@ export function BreakdownHistoryTable({
       <div className="flex-1 overflow-auto w-[1920px] md:w-auto">
         {/* HEADER */}
         <div
-          className="sticky top-0 z-10 grid outline-1 outline-gray-500/30 border dark:bg-zinc-800"
+          className="ticky top-0 z-10 grid  dark:bg-zinc-800"
           style={{ gridTemplateColumns }}
         >
           <div className="text-center py-3 border-r text-xs text-zinc-600 dark:text-zinc-300">#</div>

@@ -559,7 +559,7 @@ export function BudgetTrackingTable({
         <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+              <tr className="border-b border-zinc-200 dark:border-zinc-900 bg-zinc-50 dark:bg-zinc-950">
                 <th className="px-4 sm:px-6 py-4 text-left sticky top-0 bg-zinc-50 dark:bg-zinc-950 z-10">
                   <button
                     onClick={() => handleSort("particular")}

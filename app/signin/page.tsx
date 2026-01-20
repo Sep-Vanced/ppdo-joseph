@@ -177,6 +177,9 @@ export default function SignIn() {
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailHasSpace, setEmailHasSpace] = useState(false);
+
   const router = useRouter();
   
   // Mutations for login trail tracking
@@ -511,8 +514,24 @@ export default function SignIn() {
                 setLoading(true);
                 setError(null);
                 const formData = new FormData(e.target as HTMLFormElement);
-                const email = formData.get("email") as string;
-                const password = formData.get("password") as string;
+                const rawEmail = emailInput;
+              const password = formData.get("password") as string;
+
+              // STRICT email validation (no leading/trailing spaces)
+              if (!rawEmail || /\s/.test(rawEmail)) {
+              setError({
+                type: "invalid_credentials",
+                title: "Invalid Email Format",
+                message: "Email address must not contain spaces.",
+                action: "Remove spaces and try again."
+              });
+              setLoading(false);
+              return;
+            }
+
+
+              const email = rawEmail; // keep original value (no trim)
+
                 const ipAddress = clientIP;
                 const userAgent = getUserAgent();
                 
@@ -612,9 +631,37 @@ export default function SignIn() {
                   required
                   autoComplete="email"
                   disabled={loading}
-                  className="w-full px-4 py-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#15803d] focus:border-[#15803d] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  value={emailInput}
                   placeholder="you@example.com"
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    // Detect ANY whitespace
+                    const hasSpace = /\s/.test(value);
+                    setEmailHasSpace(hasSpace);
+
+                    // Do NOT allow spaces to be entered
+                    setEmailInput(value.replace(/\s/g, ""));
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === " ") {
+                      e.preventDefault();
+                      setEmailHasSpace(true);
+                    }
+                  }}
+                  className={`w-full px-4 py-3 rounded-xl border 
+                    ${emailHasSpace
+                      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+                      : "border-zinc-300 dark:border-zinc-700 focus:ring-[#15803d] focus:border-[#15803d]"
+                    }
+                    bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100
+                    transition-all disabled:opacity-50`}
                 />
+              {emailHasSpace && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                  Spaces are not allowed in email addresses.
+                </p>
+              )}
               </div>
 
               {/* Password Field */}

@@ -152,6 +152,7 @@ export function Header({ onSearchChange, searchQuery }: HeaderProps) {
 
             {/* Right section - Actions */}
             <div className="flex items-center gap-3">
+
               {/* Email Dropdown */}
               <EmailDropdown />
 
