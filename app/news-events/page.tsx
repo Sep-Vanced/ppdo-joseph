@@ -44,8 +44,8 @@ export default function NewsEventsPage() {
       {/* TOP SECTION */}
       <FadeIn>
       <Header />
-      <Navbar />
       </FadeIn>
+      <Navbar />
 
       {/* PAGE CONTENT */}
       <section

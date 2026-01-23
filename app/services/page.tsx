@@ -12,8 +12,8 @@ export default function ServicesPage() {
       {/* TOP SECTION */}
       <FadeIn>
       <Header />
-      <Navbar />
       </FadeIn>
+      <Navbar />
 
       {/* Page content */}
       <section

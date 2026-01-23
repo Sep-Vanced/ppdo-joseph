@@ -35,9 +35,7 @@ export default function Home() {
         <Header />
       </FadeIn>
 
-      <FadeIn>
-        <Navbar />
-      </FadeIn>
+      <Navbar />
 
       <FadeIn>
         <PPDOBanner />
@@ -55,9 +53,6 @@ export default function Home() {
         <PPDOAbout />
       </FadeIn>
 
-      <FadeIn delay={0.2}>
-        <Officials />
-      </FadeIn>
 
       <FadeIn delay={0.25}>
         <PPDOActivities />

@@ -12,8 +12,8 @@ export default function ContactUsPage() {
       {/* TOP SECTION */}
       <FadeIn>
       <Header />
-      <Navbar />
       </FadeIn>
+      <Navbar />
 
       {/* PAGE CONTENT */}
       <section
